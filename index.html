@@ -616,8 +616,19 @@ function netflixViaRemoteAPI(nfId){
     ws.onerror=()=>{ clearTimeout(t); ko(new Error('ws')) };
   });
   const tok=load('tvtoken',''); const q=`?name=${name}`+(tok?`&token=${tok}`:'');
-  return tryUrl(`ws://127.0.0.1:8001/api/v2/channels/samsung.remote.control${q}`)
-    .catch(()=>tryUrl(`wss://127.0.0.1:8002/api/v2/channels/samsung.remote.control${q}`));
+  return tvIPs().then(ips=>{
+    const urls=[];
+    ips.forEach(ip=>{ urls.push(`ws://${ip}:8001/api/v2/channels/samsung.remote.control${q}`, `wss://${ip}:8002/api/v2/channels/samsung.remote.control${q}`) });
+    return urls.reduce((p,u)=>p.catch(()=>tryUrl(u)), Promise.reject(new Error('start')));
+  });
+}
+// Direcciones donde puede estar escuchando la tele: su IP en la red de la casa y la interna.
+function tvIPs(){
+  const get=prop=>new Promise(ok=>{ try{ tizen.systeminfo.getPropertyValue(prop,v=>ok(v&&v.ipAddress),()=>ok(null)) }catch(e){ ok(null) } setTimeout(()=>ok(null),1500) });
+  return Promise.all([get('WIFI_NETWORK'),get('ETHERNET_NETWORK')]).then(r=>{
+    const ips=r.filter(Boolean); const last=load('tvip',''); if(last) ips.push(last);
+    ips.push('127.0.0.1'); return [...new Set(ips)];
+  });
 }
 async function openOnTV(pid, pname, link){
   const nf = pid===8 && link && link.match(/netflix\.com\/(?:[a-z-]+\/)?(?:title|watch)\/(\d+)/i);
