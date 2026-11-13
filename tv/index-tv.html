@@ -906,7 +906,16 @@ document.addEventListener('keydown', ev => {
   if (dirs[e.key]) {
     var _document$activeEleme2;
     // En un campo de texto, izquierda/derecha mueven el cursor; arriba/abajo salen del campo.
-    if (typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+    // Salvo que el cursor esté en el borde del texto: así se puede salir del buscador hacia Ajustes.
+    if (typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      const el = document.activeElement,
+        v = el.value || '';
+      let atEdge = true;
+      try {
+        if (el.selectionStart != null) atEdge = e.key === 'ArrowLeft' ? el.selectionStart === 0 : el.selectionEnd === v.length;
+      } catch (_) {}
+      if (!atEdge && v) return;
+    }
     if (((_document$activeEleme2 = document.activeElement) === null || _document$activeEleme2 === void 0 ? void 0 : _document$activeEleme2.tagName) === 'SELECT' && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && !isTV) return;
     e.preventDefault();
     moveFocus(dirs[e.key]);
@@ -920,7 +929,7 @@ document.addEventListener('keydown', ev => {
 // Al abrir un título, el foco va al primer botón de "Ver en…".
 new MutationObserver(() => {
   if ($('#ov').classList.contains('on')) {
-    const b = $('#modal .open') || $('#modal .actions .btn') || $('#modal .close');
+    const b = $('#sRegion') || $('#modal .open') || $('#modal .actions .btn') || $('#modal .close');
     if (b && !$('#modal').contains(document.activeElement)) b.focus();
   }
 }).observe($('#modal'), {
