@@ -602,14 +602,35 @@ function deepPayload(pid, link){
   if(nf) return {payload:`m=https://api-global.netflix.com/catalog/titles/movies/${nf[1]}&source_type=4`, uri:null};
   return {payload:link, uri:link};
 }
+// Netflix en Samsung solo acepta abrir un título por la "API de control remoto" de la tele
+// (la misma que usan las apps de celular). La primera vez la tele pregunta si permitís MiPantalla.
+function netflixViaRemoteAPI(nfId){
+  const msg=JSON.stringify({method:'ms.channel.emit',params:{event:'ed.apps.launch',to:'host',data:{appId:'11101200001',action_type:'DEEP_LINK',metaTag:`m=https://www.netflix.com/title/${nfId}&source_type=4`}}});
+  const name=btoa('MiPantalla');
+  const tryUrl=url=>new Promise((ok,ko)=>{
+    let ws; const t=setTimeout(()=>{ try{ws.close()}catch(_){ } ko(new Error('timeout')) },8000);
+    try{ ws=new WebSocket(url) }catch(e){ clearTimeout(t); return ko(e) }
+    ws.onmessage=ev=>{ let d={}; try{ d=JSON.parse(ev.data) }catch(_){}
+      if(d.event==='ms.channel.connect'){ if(d.data&&d.data.token) save('tvtoken',d.data.token); ws.send(msg); setTimeout(()=>{ clearTimeout(t); try{ws.close()}catch(_){ } ok() },800) }
+      else if(d.event==='ms.channel.unauthorized'){ clearTimeout(t); ko(new Error('unauthorized')) } };
+    ws.onerror=()=>{ clearTimeout(t); ko(new Error('ws')) };
+  });
+  const tok=load('tvtoken',''); const q=`?name=${name}`+(tok?`&token=${tok}`:'');
+  return tryUrl(`ws://127.0.0.1:8001/api/v2/channels/samsung.remote.control${q}`)
+    .catch(()=>tryUrl(`wss://127.0.0.1:8002/api/v2/channels/samsung.remote.control${q}`));
+}
 async function openOnTV(pid, pname, link){
+  const nf = pid===8 && link && link.match(/netflix\.com\/(?:[a-z-]+\/)?(?:title|watch)\/(\d+)/i);
+  if(nf){ try{ await netflixViaRemoteAPI(nf[1]); return }catch(e){ toast('Si la tele pregunta si permitís "MiPantalla", elegí Permitir y volvé a tocar el botón.') } }
   const ids=[...(TV_APPS[pid]||[])];
   const rx = TV_NAMES[pid] || new RegExp(pname.replace(/[^\w ]/g,'').split(' ')[0],'i');
   (await tizenApps()).filter(a=>rx.test(a.name)).forEach(a=>ids.unshift(a.id));
   const deep = deepPayload(pid, link);
   for(const id of [...new Set(ids)]){
-    if(deep){ try{ await tizenAppControl(id, deep.uri, deep.payload); return }catch(e){} }
-    try{ await tizenLaunch(id); if(!deep && !S.saKey) toast('Para que abra directo en el título, cargá la clave de links directos en Ajustes.'); return }catch(e){}
+    const t=(document.querySelector('#modal .mtitle')||{}).textContent||'';
+    const hint=()=>{ if(t && pid!==8) toast(`Abriendo ${pname}: buscá «${t}» con el buscador de la app.`) };
+    if(deep){ try{ await tizenAppControl(id, deep.uri, deep.payload); hint(); return }catch(e){} }
+    try{ await tizenLaunch(id); if(typeof hint==='function') hint(); if(!deep && !S.saKey) toast('Para que abra directo en el título, cargá la clave de links directos en Ajustes.'); return }catch(e){}
   }
   toast(`No encontré la app de ${pname} en la tele. Instalala desde Apps o abrila con el control.`);
 }
