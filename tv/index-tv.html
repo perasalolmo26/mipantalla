@@ -524,16 +524,31 @@ async function openDetail(k) {
       ${r.link ? `<p class="sub" style="margin-top:16px">Datos de disponibilidad: JustWatch vía TMDB.</p>` : ''}
     </div>`;
   $('#modal .close').onclick = closeDetail;
-  if (S.saKey) directLinks(type, det.id).then(opts => {
-    if (!opts || !$('#ov').classList.contains('on')) return;
-    document.querySelectorAll('#modal a.open[data-pid]').forEach(a => {
-      const o = matchOption(opts, +a.dataset.pid, a.dataset.pname);
-      if (o) {
-        a.href = o.link;
-        a.dataset.direct = '1';
+  if (S.saKey && $('#modal a.open[data-pid]')) {
+    const st = document.createElement('p');
+    st.className = 'sub';
+    st.id = 'saStatus';
+    st.textContent = 'Buscando el link directo…';
+    $('#modal .where').appendChild(st);
+    directLinks(type, det.id).then(opts => {
+      const st = $('#saStatus');
+      if (!st) return;
+      if (!opts) {
+        st.textContent = 'Link directo: ' + (saError || 'no disponible');
+        return;
       }
+      const found = [];
+      document.querySelectorAll('#modal a.open[data-pid]').forEach(a => {
+        const o = matchOption(opts, +a.dataset.pid, a.dataset.pname);
+        if (o) {
+          a.href = o.link;
+          a.dataset.direct = '1';
+          found.push(a.dataset.pname);
+        }
+      });
+      st.textContent = found.length ? `✓ Link directo listo: ${found.join(', ')}` : opts.length ? `Link directo: la API lo tiene en ${opts.map(o => o.name).join(', ')}, pero no en tus plataformas.` : 'Link directo: la API no tiene este título en tu país.';
     });
-  });
+  }
   $('#modal .actions').onclick = ev => {
     var _$, _$2, _det$seasons;
     const b = ev.target.closest('[data-s]');
@@ -600,7 +615,9 @@ const SA_NAMES = {
   15: /hulu/i,
   386: /peacock/i
 };
+let saError = '';
 async function directLinks(type, id) {
+  saError = '';
   const ck = `sa_${S.region}_${type}_${id}`,
     hit = load(ck, null);
   if (hit && Date.now() - hit.t < 3 * 864e5) return hit.o; // guardado 3 días: ahorra consultas del plan gratis
@@ -612,6 +629,7 @@ async function directLinks(type, id) {
         'X-RapidAPI-Host': 'streaming-availability.p.rapidapi.com'
       }
     });
+    if (!r.ok) saError = 'la API respondió error ' + r.status + (r.status === 403 ? ' (¿te suscribiste al plan Basic de Streaming Availability?)' : '');
     if (r.status === 401 || r.status === 403) {
       toast('La clave de links directos no es válida. Revisala en Ajustes.');
       return null;
@@ -637,6 +655,7 @@ async function directLinks(type, id) {
     });
     return o;
   } catch (e) {
+    saError = 'no se pudo conectar con la API (' + (e && e.message || e) + ')';
     return null;
   }
 }
