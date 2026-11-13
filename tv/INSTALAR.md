@@ -12,10 +12,12 @@ Necesitás: la tele y la Mac conectadas **a la misma Wi‑Fi**, y una cuenta Sam
 6. Anotá la IP de la tele: Configuración → General → Red → Estado de red → Configuración IP.
 
 ## 2. Instalar Tizen Studio en la Mac (las herramientas de Samsung)
-1. Bajá **Tizen Studio** (versión "with IDE installer" para macOS) desde
-   https://developer.tizen.org/development/tizen-studio/download e instalalo.
+1. Bajá **Tizen Studio 6.1** para Mac con este link directo (empieza la descarga sola):
+   https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-ide_Tizen_Studio_6.1_macos-64.dmg
+   Abrí el .dmg e instalalo. Si tu Mac tiene chip Apple y te pide instalar **Rosetta**, aceptá.
+   (La web de Tizen ahora te manda a herramientas nuevas para .NET: ignoralas, para la tele Samsung sigue siendo Tizen Studio.)
 2. Abrí **Package Manager** (se abre al terminar, o está en la carpeta `tizen-studio`).
-3. En la pestaña **Extension SDK** instalá **Samsung TV Extensions** y **Samsung Certificate Extension**.
+3. En la pestaña **Extension SDK** instalá **TV Extensions** y **Samsung Certificate Extension** (tiene que ser la versión 2.0.73 o más nueva).
 
 ## 3. Conectar la tele
 1. Abrí Tizen Studio → menú **Tools → Device Manager**.
