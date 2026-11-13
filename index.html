@@ -692,14 +692,14 @@ function tvIPs(){
 }
 async function openOnTV(pid, pname, link){
   const nf = pid===8 && link && link.match(/netflix\.com\/(?:[a-z-]+\/)?(?:title|watch)\/(\d+)/i);
-  if(nf){ try{ await netflixViaRemoteAPI(nf[1]); return }catch(e){ toast('Si la tele pregunta si permitís "MiPantalla", elegí Permitir y volvé a tocar el botón.') } }
+  if(nf){ try{ await netflixViaRemoteAPI(nf[1]); return }catch(e){} }
   const ids=[...(TV_APPS[pid]||[])];
   const rx = TV_NAMES[pid] || new RegExp(pname.replace(/[^\w ]/g,'').split(' ')[0],'i');
   (await tizenApps()).filter(a=>rx.test(a.name)).forEach(a=>ids.unshift(a.id));
   const deep = deepPayload(pid, link);
   for(const id of [...new Set(ids)]){
     const t=(document.querySelector('#modal .mtitle')||{}).textContent||'';
-    const hint=()=>{ if(t && pid!==8) toast(`Abriendo ${pname}: buscá «${t}» con el buscador de la app.`) };
+    const hint=()=>{ if(t) toast(`Abriendo ${pname}: buscá «${t}» con el buscador de la app.`) };
     if(deep){ try{ await tizenAppControl(id, deep.uri, deep.payload); hint(); return }catch(e){} }
     try{ await tizenLaunch(id); if(typeof hint==='function') hint(); if(!deep && !S.saKey) toast('Para que abra directo en el título, cargá la clave de links directos en Ajustes.'); return }catch(e){}
   }

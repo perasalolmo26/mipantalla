@@ -1362,9 +1362,7 @@ async function openOnTV(pid, pname, link) {
     try {
       await netflixViaRemoteAPI(nf[1]);
       return;
-    } catch (e) {
-      toast('Si la tele pregunta si permitís "MiPantalla", elegí Permitir y volvé a tocar el botón.');
-    }
+    } catch (e) {}
   }
   const ids = [...(TV_APPS[pid] || [])];
   const rx = TV_NAMES[pid] || new RegExp(pname.replace(/[^\w ]/g, '').split(' ')[0], 'i');
@@ -1373,7 +1371,7 @@ async function openOnTV(pid, pname, link) {
   for (const id of [...new Set(ids)]) {
     const t = (document.querySelector('#modal .mtitle') || {}).textContent || '';
     const hint = () => {
-      if (t && pid !== 8) toast(`Abriendo ${pname}: buscá «${t}» con el buscador de la app.`);
+      if (t) toast(`Abriendo ${pname}: buscá «${t}» con el buscador de la app.`);
     };
     if (deep) {
       try {
