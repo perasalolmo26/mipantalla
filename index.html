@@ -325,9 +325,14 @@ async function openDetail(k){
   det.media_type=type;
   const r = wp.results?.[S.region] || {};
   const q = encodeURIComponent(titleOf(det));
-  const linkFor = p => KNOWN[p.provider_id]?.search(q) || r.link || `https://www.google.com/search?q=${q}+${encodeURIComponent(p.provider_name)}`;
+  // El link de TMDB/JustWatch lleva a la página exacta del título en cada plataforma.
+  // La búsqueda dentro de la plataforma queda como alternativa.
+  const searchFor = p => KNOWN[p.provider_id]?.search(q) || `https://www.google.com/search?q=${q}+${encodeURIComponent(p.provider_name)}`;
+  const linkFor = p => r.link || searchFor(p);
   const block=(t,arr)=>arr&&arr.length?`<h3>${t}</h3>`+arr.sort((a,b)=>S.services.includes(b.provider_id)-S.services.includes(a.provider_id)).map(p=>`<a class="open ${S.services.includes(p.provider_id)?'mine':''}" data-pid="${p.provider_id}" data-pname="${esc(p.provider_name)}" href="${linkFor(p)}" target="_blank" rel="noopener">${p.logo_path?`<img src="${IMG}w92${p.logo_path}" alt="">`:''}${S.services.includes(p.provider_id)?'▶ Ver en ':''}${esc(p.provider_name)}</a>`).join(''):'';
-  const where = block('Incluido en la suscripción',r.flatrate)+block('Alquilar',r.rent)+block('Comprar',r.buy)
+  const mineHere=(r.flatrate||[]).filter(p=>S.services.includes(p.provider_id));
+  const exactHint = r.link && !window.tizen && mineHere.length ? `<p class="sub">Se abre la ficha con el link exacto: tocá el logo de ${esc(mineHere[0].provider_name)} y vas directo a la ${type==='tv'?'serie':'peli'}. ¿No funciona? ${mineHere.map(p=>`<a href="${searchFor(p)}" target="_blank" rel="noopener">Buscar en ${esc(p.provider_name)}</a>`).join(' · ')}</p>`:'';
+  const where = block('Incluido en la suscripción',r.flatrate)+exactHint+block('Alquilar',r.rent)+block('Comprar',r.buy)
     || `<h3>Dónde ver</h3><div class="sub">No figura en ninguna plataforma en ${esc(COUNTRIES.find(c=>c[0]===S.region)?.[1]||S.region)} por ahora.</div>`;
   const e = S.list[k];
   const genres=(det.genres||[]).map(g=>g.name).join(', ');
@@ -503,7 +508,7 @@ const DEMO = (()=>{
       return {results:r,total_pages:1};
     }
     if(path==='/search/multi'){const q=(p.query||'').toLowerCase();return {results:items.filter(i=>titleOf(i).toLowerCase().includes(q))}}
-    if((m=path.match(/^\/(movie|tv)\/(\d+)\/watch\/providers/))){const i=items.find(x=>x.id===+m[2]);return {results:{[S.region]:{flatrate:i._p.map(P)}}}}
+    if((m=path.match(/^\/(movie|tv)\/(\d+)\/watch\/providers/))){const i=items.find(x=>x.id===+m[2]);return {results:{[S.region]:{link:`https://www.themoviedb.org/${m[1]}/${i.id}/watch?locale=${S.region}`,flatrate:i._p.map(P)}}}}
     if((m=path.match(/^\/(movie|tv)\/(\d+)$/))){const i=items.find(x=>x.id===+m[2]);return {...i,genres:i.genre_ids.map(id=>({id,name:(G[m[1]].find(g=>g[0]===id)||[0,''])[1]})).filter(g=>g.name)}}
     return {results:[]};
   }};
