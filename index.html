@@ -364,7 +364,7 @@ async function openDetail(k){
       ${r.link?`<p class="sub" style="margin-top:16px">Datos de disponibilidad: JustWatch vía TMDB.</p>`:''}
     </div>`;
   $('#modal .close').onclick=closeDetail;
-  if(S.saKey && !window.tizen) directLinks(type, det.id).then(opts=>{
+  if(S.saKey) directLinks(type, det.id).then(opts=>{
     if(!opts || !$('#ov').classList.contains('on')) return;
     document.querySelectorAll('#modal a.open[data-pid]').forEach(a=>{
       const o=matchOption(opts, +a.dataset.pid, a.dataset.pname); if(o){ a.href=o.link; a.dataset.direct='1' }
@@ -578,15 +578,32 @@ const TV_NAMES = {8:/netflix/i,337:/disney/i,1899:/\bmax\b|hbo/i,384:/\bmax\b|hb
 function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),4500) }
 function tizenLaunch(id){ return new Promise((ok,ko)=>{ try{ tizen.application.launch(id,ok,ko) }catch(e){ ko(e) } }) }
 function tizenApps(){ return new Promise(ok=>{ try{ tizen.application.getAppsInfo(ok,()=>ok([])) }catch(e){ ok([]) } }) }
-async function openOnTV(pid, pname){
+// Abre la app pasándole el título (deep link). Netflix acepta el formato de su catálogo;
+// para las demás se le pasa el link del título y, si no lo toma, se abre la app.
+function tizenAppControl(appId, uri, payload){ return new Promise((ok,ko)=>{ try{
+  const data = payload ? [new tizen.ApplicationControlData('PAYLOAD',[JSON.stringify({values:payload})])] : [];
+  const ctl = new tizen.ApplicationControl('http://tizen.org/appcontrol/operation/view', uri||null, null, null, data);
+  tizen.application.launchAppControl(ctl, appId, ok, ko);
+}catch(e){ ko(e) } }) }
+function deepPayload(pid, link){
+  if(!link) return null;
+  const nf = pid===8 && link.match(/netflix\.com\/(?:[a-z-]+\/)?(?:title|watch)\/(\d+)/i);
+  if(nf) return {payload:`m=https://api-global.netflix.com/catalog/titles/movies/${nf[1]}&source_type=4`, uri:null};
+  return {payload:link, uri:link};
+}
+async function openOnTV(pid, pname, link){
   const ids=[...(TV_APPS[pid]||[])];
   const rx = TV_NAMES[pid] || new RegExp(pname.replace(/[^\w ]/g,'').split(' ')[0],'i');
   (await tizenApps()).filter(a=>rx.test(a.name)).forEach(a=>ids.unshift(a.id));
-  for(const id of [...new Set(ids)]){ try{ await tizenLaunch(id); return }catch(e){} }
+  const deep = deepPayload(pid, link);
+  for(const id of [...new Set(ids)]){
+    if(deep){ try{ await tizenAppControl(id, deep.uri, deep.payload); return }catch(e){} }
+    try{ await tizenLaunch(id); if(!deep && !S.saKey) toast('Para que abra directo en el título, cargá la clave de links directos en Ajustes.'); return }catch(e){}
+  }
   toast(`No encontré la app de ${pname} en la tele. Instalala desde Apps o abrila con el control.`);
 }
 if(window.tizen){
-  document.addEventListener('click',e=>{ const a=e.target.closest('a.open[data-pid]'); if(!a) return; e.preventDefault(); openOnTV(+a.dataset.pid, a.dataset.pname) },true);
+  document.addEventListener('click',e=>{ const a=e.target.closest('a.open[data-pid]'); if(!a) return; e.preventDefault(); openOnTV(+a.dataset.pid, a.dataset.pname, a.dataset.direct ? a.getAttribute('href') : null) },true);
   // Volver en la pantalla de inicio cierra la app.
   document.addEventListener('keydown',e=>{ if(e.keyCode===10009 && !$('#ov').classList.contains('on') && S.view==='home'){ try{ tizen.application.getCurrentApplication().exit() }catch(_){} } });
 }
