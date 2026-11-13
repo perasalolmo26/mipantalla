@@ -57,6 +57,7 @@ h2{font-size:18px;margin:20px 0 10px}
 .tv .search input{font-size:19px;padding:12px 18px}
 .tv .modal{max-width:1100px}.tv .mtitle{font-size:36px}.tv .ov{font-size:20px}
 .tv .tvhint{display:block}
+.toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:14px 20px;border-radius:12px;z-index:50;box-shadow:0 8px 30px #000a;max-width:90vw}
 .tvhint{display:none;color:var(--muted);font-size:15px;margin:0 0 14px}
 .poster{aspect-ratio:2/3;width:100%;object-fit:cover;display:block;background:var(--panel2)}
 .ph{aspect-ratio:2/3;display:flex;align-items:flex-end;padding:10px;font-weight:700;font-size:15px}
@@ -325,7 +326,7 @@ async function openDetail(k){
   const r = wp.results?.[S.region] || {};
   const q = encodeURIComponent(titleOf(det));
   const linkFor = p => KNOWN[p.provider_id]?.search(q) || r.link || `https://www.google.com/search?q=${q}+${encodeURIComponent(p.provider_name)}`;
-  const block=(t,arr)=>arr&&arr.length?`<h3>${t}</h3>`+arr.sort((a,b)=>S.services.includes(b.provider_id)-S.services.includes(a.provider_id)).map(p=>`<a class="open ${S.services.includes(p.provider_id)?'mine':''}" href="${linkFor(p)}" target="_blank" rel="noopener">${p.logo_path?`<img src="${IMG}w92${p.logo_path}" alt="">`:''}${S.services.includes(p.provider_id)?'▶ Ver en ':''}${esc(p.provider_name)}</a>`).join(''):'';
+  const block=(t,arr)=>arr&&arr.length?`<h3>${t}</h3>`+arr.sort((a,b)=>S.services.includes(b.provider_id)-S.services.includes(a.provider_id)).map(p=>`<a class="open ${S.services.includes(p.provider_id)?'mine':''}" data-pid="${p.provider_id}" data-pname="${esc(p.provider_name)}" href="${linkFor(p)}" target="_blank" rel="noopener">${p.logo_path?`<img src="${IMG}w92${p.logo_path}" alt="">`:''}${S.services.includes(p.provider_id)?'▶ Ver en ':''}${esc(p.provider_name)}</a>`).join(''):'';
   const where = block('Incluido en la suscripción',r.flatrate)+block('Alquilar',r.rent)+block('Comprar',r.buy)
     || `<h3>Dónde ver</h3><div class="sub">No figura en ninguna plataforma en ${esc(COUNTRIES.find(c=>c[0]===S.region)?.[1]||S.region)} por ahora.</div>`;
   const e = S.list[k];
@@ -425,7 +426,7 @@ $('#main').onclick=e=>{
 };
 $('#ov').onclick=e=>{if(e.target.id==='ov')closeDetail()};
 /* ---------- control remoto: moverse con las flechas ---------- */
-const isTV = /Tizen|SMART-TV|SmartTV|Web0S|webOS|HbbTV|NetCast|BRAVIA|AFT/i.test(navigator.userAgent) || /[?&]tv\b/.test(location.search) || load('tv',false);
+const isTV = /Tizen|SMART-TV|SmartTV|Web0S|webOS|HbbTV|NetCast|BRAVIA|AFT/i.test(navigator.userAgent) || /[?&]tv\b/.test(location.search) || !!window.tizen || load('tv',false);
 if(isTV) document.body.classList.add('tv');
 try{ window.tizen?.tvinputdevice?.registerKeyBatch?.(['MediaPlayPause','ColorF0Red']) }catch(e){}
 const FOCUSABLE='#ov.on .modal button, #ov.on .modal a, #ov.on .modal input, #ov.on .modal select, #ov.on .modal textarea';
@@ -507,6 +508,30 @@ const DEMO = (()=>{
     return {results:[]};
   }};
 })();
+
+/* ---------- app de Samsung: abrir Netflix, Disney+, etc. directamente ---------- */
+// IDs conocidos de las apps en televisores Samsung (Tizen). Si no coincide, se busca por nombre.
+const TV_APPS = {
+  8:['3201907018807','11101200001'], 337:['3201901017640'], 1899:['3202301029760','3201601007230'], 384:['3202301029760','3201601007230'],
+  350:['3201807016597'], 119:['3201910019365','3201512006785'], 9:['3201910019365','3201512006785'], 531:['3201710014981'],
+  283:['3201906018693'], 11:['3201612011418'],
+};
+const TV_NAMES = {8:/netflix/i,337:/disney/i,1899:/\bmax\b|hbo/i,384:/\bmax\b|hbo/i,350:/apple\s*tv/i,119:/prime|amazon/i,9:/prime|amazon/i,531:/paramount/i,283:/crunchyroll/i,11:/mubi/i};
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),4500) }
+function tizenLaunch(id){ return new Promise((ok,ko)=>{ try{ tizen.application.launch(id,ok,ko) }catch(e){ ko(e) } }) }
+function tizenApps(){ return new Promise(ok=>{ try{ tizen.application.getAppsInfo(ok,()=>ok([])) }catch(e){ ok([]) } }) }
+async function openOnTV(pid, pname){
+  const ids=[...(TV_APPS[pid]||[])];
+  const rx = TV_NAMES[pid] || new RegExp(pname.replace(/[^\w ]/g,'').split(' ')[0],'i');
+  (await tizenApps()).filter(a=>rx.test(a.name)).forEach(a=>ids.unshift(a.id));
+  for(const id of [...new Set(ids)]){ try{ await tizenLaunch(id); return }catch(e){} }
+  toast(`No encontré la app de ${pname} en la tele. Instalala desde Apps o abrila con el control.`);
+}
+if(window.tizen){
+  document.addEventListener('click',e=>{ const a=e.target.closest('a.open[data-pid]'); if(!a) return; e.preventDefault(); openOnTV(+a.dataset.pid, a.dataset.pname) },true);
+  // Volver en la pantalla de inicio cierra la app.
+  document.addEventListener('keydown',e=>{ if(e.keyCode===10009 && !$('#ov').classList.contains('on') && S.view==='home'){ try{ tizen.application.getCurrentApplication().exit() }catch(_){} } });
+}
 
 /* ---------- app instalable ---------- */
 let installEv=null;
