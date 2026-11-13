@@ -166,6 +166,7 @@ function load(k,d){try{const v=localStorage.getItem('mp_'+k);return v?JSON.parse
 function save(k,v){try{localStorage.setItem('mp_'+k,JSON.stringify(v))}catch(e){}}
 const S = {
   key: load('key',''),
+  saKey: load('saKey',''),            // clave opcional de Streaming Availability (RapidAPI) para links directos
   region: load('region', guessRegion()),
   services: load('services', DEFAULT_SERVICES),
   list: load('list', {}),            // id -> {item, status:'want'|'watching'|'done', season, episode, updated}
@@ -331,7 +332,7 @@ async function openDetail(k){
   const linkFor = p => r.link || searchFor(p);
   const block=(t,arr)=>arr&&arr.length?`<h3>${t}</h3>`+arr.sort((a,b)=>S.services.includes(b.provider_id)-S.services.includes(a.provider_id)).map(p=>`<a class="open ${S.services.includes(p.provider_id)?'mine':''}" data-pid="${p.provider_id}" data-pname="${esc(p.provider_name)}" href="${linkFor(p)}" target="_blank" rel="noopener">${p.logo_path?`<img src="${IMG}w92${p.logo_path}" alt="">`:''}${S.services.includes(p.provider_id)?'▶ Ver en ':''}${esc(p.provider_name)}</a>`).join(''):'';
   const mineHere=(r.flatrate||[]).filter(p=>S.services.includes(p.provider_id));
-  const exactHint = r.link && !window.tizen && mineHere.length ? `<p class="sub">Se abre la ficha con el link exacto: tocá el logo de ${esc(mineHere[0].provider_name)} y vas directo a la ${type==='tv'?'serie':'peli'}. ¿No funciona? ${mineHere.map(p=>`<a href="${searchFor(p)}" target="_blank" rel="noopener">Buscar en ${esc(p.provider_name)}</a>`).join(' · ')}</p>`:'';
+  const exactHint = r.link && !window.tizen && !S.saKey && mineHere.length ? `<p class="sub">Se abre la ficha con el link exacto: tocá el logo de ${esc(mineHere[0].provider_name)} y vas directo a la ${type==='tv'?'serie':'peli'}. ¿No funciona? ${mineHere.map(p=>`<a href="${searchFor(p)}" target="_blank" rel="noopener">Buscar en ${esc(p.provider_name)}</a>`).join(' · ')}</p>`:'';
   const where = block('Incluido en la suscripción',r.flatrate)+exactHint+block('Alquilar',r.rent)+block('Comprar',r.buy)
     || `<h3>Dónde ver</h3><div class="sub">No figura en ninguna plataforma en ${esc(COUNTRIES.find(c=>c[0]===S.region)?.[1]||S.region)} por ahora.</div>`;
   const e = S.list[k];
@@ -356,6 +357,12 @@ async function openDetail(k){
       ${r.link?`<p class="sub" style="margin-top:16px">Datos de disponibilidad: JustWatch vía TMDB.</p>`:''}
     </div>`;
   $('#modal .close').onclick=closeDetail;
+  if(S.saKey && !window.tizen) directLinks(type, det.id).then(opts=>{
+    if(!opts || !$('#ov').classList.contains('on')) return;
+    document.querySelectorAll('#modal a.open[data-pid]').forEach(a=>{
+      const o=matchOption(opts, +a.dataset.pid, a.dataset.pname); if(o){ a.href=o.link; a.dataset.direct='1' }
+    });
+  });
   $('#modal .actions').onclick=ev=>{
     const b=ev.target.closest('[data-s]'); if(!b) return;
     const s=b.dataset.s;
@@ -368,6 +375,28 @@ async function openDetail(k){
 function slim(d){return {id:d.id,media_type:d.media_type,title:d.title,name:d.name,poster_path:d.poster_path,backdrop_path:d.backdrop_path,release_date:d.release_date,first_air_date:d.first_air_date,overview:d.overview}}
 let lastFocus=null;
 async function closeDetail(){ $('#ov').classList.remove('on'); await render(); const c=lastFocus&&document.querySelector(`.card[data-k="${lastFocus}"]`); (c||firstFocusable())?.focus() }
+
+/* ---------- links directos (Streaming Availability API) ---------- */
+const SA_NAMES = {8:/netflix/i,337:/disney/i,1899:/\bmax\b|hbo/i,384:/\bmax\b|hbo/i,350:/apple/i,119:/prime|amazon/i,9:/prime|amazon/i,531:/paramount/i,283:/crunchyroll/i,11:/mubi/i,15:/hulu/i,386:/peacock/i};
+async function directLinks(type, id){
+  const ck=`sa_${S.region}_${type}_${id}`, hit=load(ck,null);
+  if(hit && Date.now()-hit.t < 3*864e5) return hit.o;           // guardado 3 días: ahorra consultas del plan gratis
+  try{
+    const r=await fetch(`https://streaming-availability.p.rapidapi.com/shows/${type}/${id}?country=${S.region.toLowerCase()}&output_language=es`,
+      {headers:{'X-RapidAPI-Key':S.saKey,'X-RapidAPI-Host':'streaming-availability.p.rapidapi.com'}});
+    if(r.status===401||r.status===403){ toast('La clave de links directos no es válida. Revisala en Ajustes.'); return null }
+    if(r.status===429){ toast('Se terminaron las consultas gratis de hoy para links directos. Mañana vuelven.'); return null }
+    if(!r.ok) return null;
+    const j=await r.json();
+    const o=(j.streamingOptions?.[S.region.toLowerCase()]||[]).map(x=>({name:x.service?.name||x.service?.id||'',sid:x.service?.id||'',type:x.type,link:x.link}));
+    save(ck,{t:Date.now(),o}); return o;
+  }catch(e){ return null }
+}
+function matchOption(opts, pid, pname){
+  const rx = SA_NAMES[pid] || new RegExp(pname.replace(/[^\w ]/g,'').split(' ')[0]||'#','i');
+  const c=opts.filter(o=>rx.test(o.name)||rx.test(o.sid));
+  return c.find(o=>o.type==='subscription') || c[0];
+}
 
 /* ---------- ajustes ---------- */
 async function openSettings(){
@@ -384,6 +413,9 @@ async function openSettings(){
     <input id="sKey" type="text" placeholder="Pegá tu API key o token de lectura" value="${esc(S.key)}">
     <div class="hint">Creá una cuenta en themoviedb.org → Ajustes → API. Se guarda solo en este navegador.<br>
     <b>Nunca</b> te vamos a pedir la contraseña de Netflix, Disney+ ni ninguna otra.</div>
+    <label for="sSaKey">Links directos a cada título (opcional, gratis)</label>
+    <input id="sSaKey" type="text" placeholder="Pegá tu clave de RapidAPI" value="${esc(S.saKey)}">
+    <div class="hint">Con esta clave, "Ver en Netflix" abre la peli o serie directamente. Sacala en rapidapi.com → "Streaming Availability" → plan Basic (gratis). Sin clave, se abre la ficha de TMDB.</div>
     <label><input type="checkbox" id="sTV" ${document.body.classList.contains('tv')?'checked':''}> Modo tele (letra grande y control remoto)</label>
     <div class="hint">Se activa solo en Smart TV. En la tele conviene pegar la <b>Clave de la API</b> corta (32 letras y números) en vez del token largo.</div>
     <label for="sBackup">Pasar tu lista a otro dispositivo</label>
@@ -417,6 +449,7 @@ async function openSettings(){
   $('#sSave').onclick=()=>{
     const k=$('#sKey').value.trim(); if(k!==S.key){S.key=k;S.providers=null;cache.clear()}
     if(!S.services.length) S.services=[...DEFAULT_SERVICES];
+    S.saKey=$('#sSaKey').value.trim(); save('saKey',S.saKey);
     save('key',S.key);save('region',S.region);save('services',S.services);ex.only=null;closeDetail();
   };
 }
