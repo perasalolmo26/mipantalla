@@ -45,7 +45,11 @@ h2{font-size:18px;margin:20px 0 10px}
 .card:hover{transform:translateY(-3px);border-color:var(--border)}
 /* foco visible para teclado y control remoto */
 :focus{outline:none}
-:focus-visible,.tv :focus{outline:4px solid var(--accent2);outline-offset:3px}
+/* reglas separadas: los navegadores viejos de tele no entienden :focus-visible y descartarían toda la regla */
+:focus-visible{outline:4px solid var(--accent2);outline-offset:3px}
+.tv :focus{outline:4px solid var(--accent2);outline-offset:3px;box-shadow:0 0 0 8px rgba(255,183,3,.35)}
+.tv button:focus,.tv a:focus,.tv .chip:focus{background:var(--accent2)!important;color:#111!important;border-color:var(--accent2)!important}
+.tv input:focus,.tv select:focus,.tv textarea:focus{border-color:var(--accent2);background:#2b2a1d}
 .tv .card:focus{transform:scale(1.07);z-index:2;box-shadow:0 10px 30px #000c}
 /* modo tele: todo más grande para verlo desde el sillón */
 .tv{font-size:20px}
