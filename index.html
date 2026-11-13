@@ -78,6 +78,13 @@ h2{font-size:18px;margin:20px 0 10px}
 .badge.done{background:var(--ok);color:#111}
 .progress{height:4px;background:#333}
 .progress i{display:block;height:100%;background:var(--accent)}
+.row{display:flex;gap:14px;overflow-x:auto;padding:6px 4px 14px;scroll-snap-type:x proximity;scrollbar-width:thin}
+.row>.card{flex:0 0 160px;scroll-snap-align:start;margin-right:0}
+.tv .row>.card{flex-basis:220px}
+.rowhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:22px}
+.rowhead h2{margin:0}
+.link{background:none;border:0;color:var(--accent);font-weight:600;padding:6px 8px;border-radius:8px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
 .empty{color:var(--muted);padding:30px 0;text-align:center}
 .more{display:block;margin:20px auto;background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:10px 22px;border-radius:999px}
 /* modal */
@@ -123,6 +130,7 @@ h2{font-size:18px;margin:20px 0 10px}
     <div class="logo">Mi<span>Pantalla</span></div>
     <nav id="nav">
       <button data-v="home" class="on">Inicio</button>
+      <button data-v="news">Novedades</button>
       <button data-v="explore">Explorar</button>
       <button data-v="list">Mi lista</button>
     </nav>
@@ -255,6 +263,7 @@ async function render(){
     if(S.view==='home') await viewHome(m);
     else if(S.view==='explore') await viewExplore(m);
     else if(S.view==='list') viewList(m);
+    else if(S.view==='news') await viewNews(m);
     else if(S.view==='search') await viewSearch(m);
   }catch(e){ m.innerHTML = notice()+`<div class="empty">${esc(e.message)}</div>` }
 }
@@ -264,14 +273,60 @@ async function viewHome(m){
   const want = Object.values(S.list).filter(e=>e.status==='want').sort((a,b)=>b.updated-a.updated).map(e=>e.item);
   const prov = S.services.join('|');
   const base = {watch_region:S.region, with_watch_providers:prov, with_watch_monetization_types:'flatrate', sort_by:'popularity.desc'};
-  const [movies, shows] = await Promise.all([tmdb('/discover/movie',base), tmdb('/discover/tv',base)]);
-  movies.results.forEach(r=>r.media_type='movie'); shows.results.forEach(r=>r.media_type='tv');
+  const top = {...base, sort_by:'vote_average.desc', 'vote_count.gte':500};
+  const ps = await getProviders();
+  const mine = ps.filter(p=>S.services.includes(p.provider_id));
+  const [nov, sh1, sh2, mv1, mv2, topTv, topMv, ...perProv] = await Promise.all([
+    newsItems('all', 'all', 1),
+    disc('tv',base,1), disc('tv',base,2), disc('movie',base,1), disc('movie',base,2),
+    disc('tv',top,1), disc('movie',top,1),
+    ...mine.map(p=>Promise.all([disc('tv',{...base,with_watch_providers:String(p.provider_id)},1), disc('movie',{...base,with_watch_providers:String(p.provider_id)},1)]).then(([a,b])=>mix(a,b)))
+  ]);
   m.innerHTML = notice()
     + `<div class="chips" id="mychips">${await servicesChips(true)}</div>`
-    + (watching.length?`<h2>Seguir viendo</h2>${grid(watching)}`:'')
-    + (want.length?`<h2>En mi lista</h2>${grid(want.slice(0,12))}`:'')
-    + `<h2>Series populares en tus plataformas</h2>${grid(shows.results.slice(0,18))}`
-    + `<h2>Películas populares en tus plataformas</h2>${grid(movies.results.slice(0,18))}`;
+    + (watching.length?rowHTML('Seguir viendo',watching):'')
+    + rowHTML('Novedades en tus plataformas', nov.items, 'news')
+    + (want.length?rowHTML('En mi lista',want,'list'):'')
+    + rowHTML('Series populares', uniq([...sh1,...sh2]))
+    + rowHTML('Películas populares', uniq([...mv1,...mv2]))
+    + rowHTML('Las mejor puntuadas', mix(topTv, topMv))
+    + mine.map((p,i)=>rowHTML(`Lo más visto en ${esc(p.provider_name)}`, perProv[i], 'p'+p.provider_id)).join('');
+}
+// helpers de catálogo
+async function disc(type, params, page){ try{ const r=await tmdb('/discover/'+type,{...params,page}); r.results.forEach(x=>x.media_type=type); return r.results }catch(e){ return [] } }
+function uniq(arr){ const seen=new Set(); return arr.filter(x=>{ const k=keyOf(x); if(seen.has(k)) return false; seen.add(k); return true }) }
+function mix(a,b){ const out=[]; for(let i=0;i<Math.max(a.length,b.length);i++){ if(a[i]) out.push(a[i]); if(b[i]) out.push(b[i]) } return uniq(out) }
+function rowHTML(title, items, more){
+  if(!items || !items.length) return '';
+  items.forEach(it=>shown.set(keyOf(it),it));
+  const btn = more ? `<button class="link" data-more="${more}">Ver todo →</button>` : '';
+  return `<div class="rowhead"><h2>${title}</h2>${btn}</div><div class="row">${items.map(it=>cardHTML(it)).join('')}</div>`;
+}
+function isoDaysAgo(n){ const d=new Date(Date.now()-n*864e5); return d.toISOString().slice(0,10) }
+// Novedades: películas estrenadas en los últimos 90 días y series con episodios nuevos en el último mes.
+async function newsItems(type, prov, page){
+  const provs = prov==='all' ? S.services.join('|') : String(prov);
+  const base = {watch_region:S.region, with_watch_providers:provs, with_watch_monetization_types:'flatrate', sort_by:'popularity.desc'};
+  const mv = type!=='tv' ? disc('movie', {...base, 'primary_release_date.gte':isoDaysAgo(90), 'primary_release_date.lte':isoDaysAgo(-1), 'vote_count.gte':5}, page) : Promise.resolve([]);
+  const tv = type!=='movie' ? disc('tv', {...base, 'air_date.gte':isoDaysAgo(30), 'air_date.lte':isoDaysAgo(-7)}, page) : Promise.resolve([]);
+  const [a,b]=await Promise.all([tv,mv]);
+  return {items: mix(a,b), more: a.length>=20 || b.length>=20};
+}
+let nw = {type:'all', prov:'all', page:1};
+async function viewNews(m, append=false){
+  const r = await newsItems(nw.type, nw.prov, nw.page);
+  if(append){ const g=m.querySelector('.grid'); r.items.forEach(it=>shown.set(keyOf(it),it)); g.insertAdjacentHTML('beforeend', r.items.map(it=>cardHTML(it)).join('')); if(!r.more) m.querySelector('#more')?.remove(); return }
+  const ps = (await getProviders()).filter(p=>S.services.includes(p.provider_id));
+  const chip=(v,label,on,attr,logo)=>`<button class="chip ${on?'on':''}" ${attr}="${v}">${logo?`<img src="${IMG}w92${logo}" alt="">`:''}${label}</button>`;
+  m.innerHTML = notice() + `<h2 style="margin-top:4px">Novedades</h2>
+    <p class="sub">Películas estrenadas en los últimos 3 meses y series con capítulos nuevos este mes, en tus plataformas.</p>
+    <div class="seg" id="nwType" style="margin:12px 0">${chip('all','Todo',nw.type==='all','data-t')}${chip('tv','Series',nw.type==='tv','data-t')}${chip('movie','Películas',nw.type==='movie','data-t')}</div>
+    <div class="chips" id="nwProv">${chip('all','Todas mis plataformas',nw.prov==='all','data-np')}${ps.map(p=>chip(p.provider_id,esc(p.provider_name),String(nw.prov)===String(p.provider_id),'data-np',p.logo_path)).join('')}</div>
+    ${grid(r.items)}
+    ${r.more?'<button class="more" id="more">Cargar más</button>':''}`;
+  $('#nwType').onclick=e=>{const b=e.target.closest('[data-t]'); if(!b) return; nw.type=b.dataset.t; nw.page=1; render()};
+  $('#nwProv').onclick=e=>{const b=e.target.closest('[data-np]'); if(!b) return; nw.prov=b.dataset.np; nw.page=1; render()};
+  $('#more')&&($('#more').onclick=()=>{nw.page++; viewNews(m,true)});
 }
 
 let ex = {type:'tv', genre:'', sort:'popularity.desc', page:1, only:null};
@@ -481,6 +536,11 @@ $('#q').oninput=e=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{lastQ=e.target.v
 $('#main').onclick=e=>{
   const c=e.target.closest('.card'); if(c){ lastFocus=c.dataset.k; return openDetail(c.dataset.k) }
   const p=e.target.closest('#mychips [data-p]'); if(p){S.view='explore';ex.only=[+p.dataset.p];ex.page=1;render()}
+  const mo=e.target.closest('[data-more]'); if(mo){ const v=mo.dataset.more;
+    if(v==='news'){ nw={type:'all',prov:'all',page:1}; S.view='news' }
+    else if(v==='list'){ S.view='list' }
+    else if(v[0]==='p'){ S.view='explore'; ex.only=[+v.slice(1)]; ex.page=1 }
+    render().then(()=>{ if(document.body.classList.contains('tv')) firstFocusable()?.focus() }) }
 };
 $('#ov').onclick=e=>{if(e.target.id==='ov')closeDetail()};
 /* ---------- control remoto: moverse con las flechas ---------- */
