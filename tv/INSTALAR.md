@@ -35,11 +35,13 @@ Necesitás: la tele y la Mac conectadas **a la misma Wi‑Fi**, y una cuenta Sam
 ## 5. Armar e instalar la app
 Abrí la app **Terminal** y pegá esto (cambiá `IP_DE_LA_TELE`):
 
+Primero bajá la app en zip (no hace falta instalar nada más):
+https://github.com/perasalolmo26/mipantalla/archive/refs/heads/main.zip
+Queda en Descargas como carpeta **mipantalla-main**.
+
 ```bash
-cd ~/Desktop
-git clone https://github.com/perasalolmo26/mipantalla
-cd mipantalla
-./tv/preparar.sh
+cd ~/Downloads/mipantalla-main
+bash tv/preparar.sh
 ~/tizen-studio/tools/sdb connect IP_DE_LA_TELE
 ~/tizen-studio/tools/ide/bin/tizen package -t wgt -s MiPantalla -- tv/app
 ~/tizen-studio/tools/ide/bin/tizen install -n MiPantalla.wgt -- tv/app
@@ -55,9 +57,10 @@ Al terminar, **MiPantalla** aparece en Apps de la tele.
 - Volver en la pantalla de inicio cierra MiPantalla.
 
 ## Para actualizarla más adelante
+Borrá la carpeta `mipantalla-main` vieja, bajá el zip de nuevo y:
 ```bash
-cd ~/Desktop/mipantalla && git pull
-./tv/preparar.sh
+cd ~/Downloads/mipantalla-main
+bash tv/preparar.sh
 ~/tizen-studio/tools/sdb connect IP_DE_LA_TELE
 ~/tizen-studio/tools/ide/bin/tizen package -t wgt -s MiPantalla -- tv/app
 ~/tizen-studio/tools/ide/bin/tizen install -n MiPantalla.wgt -- tv/app
