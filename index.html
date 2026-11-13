@@ -43,6 +43,21 @@ h2{font-size:18px;margin:20px 0 10px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
 .card{background:var(--panel);border-radius:var(--radius);overflow:hidden;cursor:pointer;border:1px solid transparent;transition:transform .12s,border-color .12s;position:relative}
 .card:hover{transform:translateY(-3px);border-color:var(--border)}
+/* foco visible para teclado y control remoto */
+:focus{outline:none}
+:focus-visible,.tv :focus{outline:4px solid var(--accent2);outline-offset:3px}
+.tv .card:focus{transform:scale(1.07);z-index:2;box-shadow:0 10px 30px #000c}
+/* modo tele: todo más grande para verlo desde el sillón */
+.tv{font-size:20px}
+.tv .bar,.tv main{max-width:none;padding-left:56px;padding-right:56px}
+.tv .grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:22px}
+.tv .meta .t{font-size:18px}.tv .meta .s{font-size:15px}
+.tv h2{font-size:28px;margin-top:34px}
+.tv nav button,.tv .gear,.tv .chip,.tv .btn,.tv .open,.tv select{font-size:19px;padding:12px 18px}
+.tv .search input{font-size:19px;padding:12px 18px}
+.tv .modal{max-width:1100px}.tv .mtitle{font-size:36px}.tv .ov{font-size:20px}
+.tv .tvhint{display:block}
+.tvhint{display:none;color:var(--muted);font-size:15px;margin:0 0 14px}
 .poster{aspect-ratio:2/3;width:100%;object-fit:cover;display:block;background:var(--panel2)}
 .ph{aspect-ratio:2/3;display:flex;align-items:flex-end;padding:10px;font-weight:700;font-size:15px}
 .meta{padding:8px 10px 10px}
@@ -204,7 +219,7 @@ function cardHTML(it, provs){
   const pl = provs && provs.length ? `<div class="provs">${provs.slice(0,3).map(provLogo).join('')}</div>`:'';
   const prog = e && e.status==='watching' && e.episode ? `<div class="progress"><i style="width:${Math.min(100,(e.episode/(e.totalEp||10))*100)}%"></i></div>`:'';
   const extra = e && e.status==='watching' && typeOf(it)==='tv' ? ` · T${e.season||1} E${e.episode||1}`:'';
-  return `<div class="card" data-k="${keyOf(it)}">${pl}${badge}${posterHTML(it)}${prog}
+  return `<div class="card" tabindex="0" data-k="${keyOf(it)}">${pl}${badge}${posterHTML(it)}${prog}
     <div class="meta"><div class="t">${esc(titleOf(it))}</div><div class="s">${typeOf(it)==='tv'?'Serie':'Película'} · ${yearOf(it)||'—'}${extra}</div></div></div>`;
 }
 let shown = new Map(); // key -> item, para abrir el detalle
@@ -213,7 +228,8 @@ function grid(items, provMap){
   return items.length ? `<div class="grid">${items.map(it=>cardHTML(it, provMap?.[keyOf(it)])).join('')}</div>` : `<div class="empty">No hay resultados.</div>`;
 }
 function notice(){
-  return demo() ? `<div class="notice"><b>Modo demo.</b> Estás viendo datos de ejemplo. Para ver el catálogo real de tu país, pegá una clave gratuita de TMDB en <a href="#" onclick="openSettings();return false">Ajustes</a>.</div>`:'';
+  const tv=document.body.classList.contains('tv')?'<p class="tvhint">Usá las flechas del control para moverte, OK para abrir y Volver para cerrar.</p>':'';
+  return tv+(demo() ? `<div class="notice"><b>Modo demo.</b> Estás viendo datos de ejemplo. Para ver el catálogo real de tu país, pegá una clave gratuita de TMDB en <a href="#" onclick="openSettings();return false">Ajustes</a>.</div>`:'');
 }
 async function servicesChips(onlyMine=false){
   const ps = await getProviders();
@@ -344,7 +360,8 @@ async function openDetail(k){
   $('#modal .actions').onchange=()=>{ if(S.list[k]){S.list[k].season=+$('#se').value;S.list[k].episode=+$('#epn').value;S.list[k].status='watching';S.list[k].updated=Date.now();save('list',S.list)} };
 }
 function slim(d){return {id:d.id,media_type:d.media_type,title:d.title,name:d.name,poster_path:d.poster_path,backdrop_path:d.backdrop_path,release_date:d.release_date,first_air_date:d.first_air_date,overview:d.overview}}
-function closeDetail(){ $('#ov').classList.remove('on'); render() }
+let lastFocus=null;
+async function closeDetail(){ $('#ov').classList.remove('on'); await render(); const c=lastFocus&&document.querySelector(`.card[data-k="${lastFocus}"]`); (c||firstFocusable())?.focus() }
 
 /* ---------- ajustes ---------- */
 async function openSettings(){
@@ -361,6 +378,8 @@ async function openSettings(){
     <input id="sKey" type="text" placeholder="Pegá tu API key o token de lectura" value="${esc(S.key)}">
     <div class="hint">Creá una cuenta en themoviedb.org → Ajustes → API. Se guarda solo en este navegador.<br>
     <b>Nunca</b> te vamos a pedir la contraseña de Netflix, Disney+ ni ninguna otra.</div>
+    <label><input type="checkbox" id="sTV" ${document.body.classList.contains('tv')?'checked':''}> Modo tele (letra grande y control remoto)</label>
+    <div class="hint">Se activa solo en Smart TV. En la tele conviene pegar la <b>Clave de la API</b> corta (32 letras y números) en vez del token largo.</div>
     <label for="sBackup">Pasar tu lista a otro dispositivo</label>
     <div class="hint">Copiá este código acá y pegalo en Ajustes en el otro dispositivo (celu, tele o compu).</div>
     <textarea id="sBackup" spellcheck="false"></textarea>
@@ -388,6 +407,7 @@ async function openSettings(){
       $('#bMsg').textContent=`Listo: ${Object.keys(d.list).length} títulos cargados.`; $('#sRegion').value=S.region; fill();
     }catch(e){$('#bMsg').textContent='Ese código no es válido. Copialo completo desde el otro dispositivo.'}
   };
+  $('#sTV').onchange=e=>{document.body.classList.toggle('tv',e.target.checked);save('tv',e.target.checked)};
   $('#sSave').onclick=()=>{
     const k=$('#sKey').value.trim(); if(k!==S.key){S.key=k;S.providers=null;cache.clear()}
     if(!S.services.length) S.services=[...DEFAULT_SERVICES];
@@ -400,11 +420,51 @@ $('#nav').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.view=b.d
 $('#openSettings').onclick=openSettings;
 $('#q').oninput=e=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{lastQ=e.target.value.trim();S.view=lastQ?'search':'home';render()},350)};
 $('#main').onclick=e=>{
-  const c=e.target.closest('.card'); if(c) return openDetail(c.dataset.k);
+  const c=e.target.closest('.card'); if(c){ lastFocus=c.dataset.k; return openDetail(c.dataset.k) }
   const p=e.target.closest('#mychips [data-p]'); if(p){S.view='explore';ex.only=[+p.dataset.p];ex.page=1;render()}
 };
 $('#ov').onclick=e=>{if(e.target.id==='ov')closeDetail()};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#ov').classList.contains('on'))closeDetail()});
+/* ---------- control remoto: moverse con las flechas ---------- */
+const isTV = /Tizen|SMART-TV|SmartTV|Web0S|webOS|HbbTV|NetCast|BRAVIA|AFT/i.test(navigator.userAgent) || /[?&]tv\b/.test(location.search) || load('tv',false);
+if(isTV) document.body.classList.add('tv');
+try{ window.tizen?.tvinputdevice?.registerKeyBatch?.(['MediaPlayPause','ColorF0Red']) }catch(e){}
+const FOCUSABLE='#ov.on .modal button, #ov.on .modal a, #ov.on .modal input, #ov.on .modal select, #ov.on .modal textarea';
+const FOCUSABLE_PAGE='header button:not([hidden]), header input, main button, main a, main select, main .card';
+function focusables(){ return [...document.querySelectorAll($('#ov').classList.contains('on')?FOCUSABLE:FOCUSABLE_PAGE)].filter(el=>el.offsetParent!==null) }
+function firstFocusable(){ return document.querySelector('main .card')||focusables()[0] }
+function moveFocus(dir){
+  const all=focusables(); const cur=document.activeElement;
+  if(!all.includes(cur)){ (firstFocusable()||all[0])?.focus(); return }
+  const a=cur.getBoundingClientRect(), ax=a.left+a.width/2, ay=a.top+a.height/2;
+  let best=null, bestScore=Infinity;
+  for(const el of all){ if(el===cur) continue;
+    const b=el.getBoundingClientRect(), bx=b.left+b.width/2, by=b.top+b.height/2, dx=bx-ax, dy=by-ay;
+    let main, cross;
+    if(dir==='right'){ if(b.left<a.right-4) continue; main=dx; cross=Math.abs(dy) }
+    else if(dir==='left'){ if(b.right>a.left+4) continue; main=-dx; cross=Math.abs(dy) }
+    else if(dir==='down'){ if(b.top<a.bottom-4) continue; main=dy; cross=Math.abs(dx) }
+    else { if(b.bottom>a.top+4) continue; main=-dy; cross=Math.abs(dx) }
+    const score=main+cross*(dir==='left'||dir==='right'?4:1.5);
+    if(score<bestScore){ bestScore=score; best=el }
+  }
+  if(best){ best.focus(); best.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'}) }
+}
+document.addEventListener('keydown',e=>{
+  const open=$('#ov').classList.contains('on');
+  const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
+  const back = e.key==='Escape' || e.keyCode===10009 || e.key==='GoBack' || e.key==='BrowserBack' || (e.key==='Backspace'&&!typing);
+  if(back){ if(open){ e.preventDefault(); closeDetail() } else if(S.view!=='home'){ e.preventDefault(); S.view='home'; $('#q').value=''; render().then(()=>firstFocusable()?.focus()) } return }
+  const dirs={ArrowRight:'right',ArrowLeft:'left',ArrowDown:'down',ArrowUp:'up'};
+  if(dirs[e.key]){
+    // En un campo de texto, izquierda/derecha mueven el cursor; arriba/abajo salen del campo.
+    if(typing && (e.key==='ArrowLeft'||e.key==='ArrowRight')) return;
+    if(document.activeElement?.tagName==='SELECT' && (e.key==='ArrowUp'||e.key==='ArrowDown') && !isTV) return;
+    e.preventDefault(); moveFocus(dirs[e.key]); return;
+  }
+  if(e.key==='Enter' && document.activeElement?.classList.contains('card')){ e.preventDefault(); document.activeElement.click() }
+});
+// Al abrir un título, el foco va al primer botón de "Ver en…".
+new MutationObserver(()=>{ if($('#ov').classList.contains('on')){ const b=$('#modal .open')||$('#modal .actions .btn')||$('#modal .close'); if(b && !$('#modal').contains(document.activeElement)) b.focus() } }).observe($('#modal'),{childList:true});
 
 /* ---------- datos de ejemplo para el modo demo ---------- */
 const DEMO = (()=>{
