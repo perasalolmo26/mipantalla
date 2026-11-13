@@ -65,3 +65,7 @@ bash tv/preparar.sh
 ~/tizen-studio/tools/ide/bin/tizen package -t wgt -s MiPantalla -- tv/app
 ~/tizen-studio/tools/ide/bin/tizen install -n MiPantalla.wgt -- tv/app
 ```
+
+## Nota técnica
+La tele usa un navegador interno más viejo, por eso la app de la tele usa `tv/index-tv.html`,
+una copia de `index.html` convertida con `node tv/build-tv.js` (Babel). Hay que regenerarla cada vez que cambia `index.html`.
