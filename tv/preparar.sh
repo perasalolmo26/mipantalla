@@ -3,7 +3,8 @@
 set -e
 cd "$(dirname "$0")"
 rm -rf app && mkdir app
-cp index-tv.html app/index.html
+cp shell.html app/index.html
+cp index-tv.html app/app-local.html
 cp ../manifest.json app/
 cp ../icon-512.png app/icon.png
 cp ../icon-192.png ../icon-512.png app/

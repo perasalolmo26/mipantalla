@@ -57,6 +57,8 @@ Al terminar, **MiPantalla** aparece en Apps de la tele.
 - Volver en la pantalla de inicio cierra MiPantalla.
 
 ## Para actualizarla más adelante
+Desde la versión del 13/11/2026 **no hace falta**: cada vez que abrís MiPantalla en la tele baja sola la última versión (si no hay internet, usa la copia instalada).
+Solo hay que reinstalar si se cambia algo del paquete (ícono, permisos) o cuando vence el certificado:
 Borrá la carpeta `mipantalla-main` vieja, bajá el zip de nuevo y:
 ```bash
 cd ~/Downloads/mipantalla-main

@@ -9,5 +9,7 @@ const out = src.replace(/<script>([\s\S]*?)<\/script>/g, (m, code) => {
   const r = babel.transformSync(code, { presets: [[preset, { targets: { chrome: '56' }, modules: false }]], sourceType: 'script', babelrc: false, configFile: false });
   return '<script>\n' + r.code + '\n</script>';
 });
-fs.writeFileSync(path.join(__dirname, 'index-tv.html'), out);
+// La marca MIPANTALLA-TV la usa tv/shell.html para reconocer una versión válida.
+const final = out.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<!--MIPANTALLA-TV-->');
+fs.writeFileSync(path.join(__dirname, 'index-tv.html'), final);
 console.log('Listo: tv/index-tv.html');

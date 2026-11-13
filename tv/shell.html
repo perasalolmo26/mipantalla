@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<script>
+// Arranque de la app de la tele: usa la última versión publicada en internet,
+// así no hay que reinstalar para cada mejora. Sin internet, usa la copia instalada.
+(function(){
+  function get(u){
+    try{ var x=new XMLHttpRequest(); x.open('GET',u,false); x.send();
+      if((x.status===200||x.status===0) && x.responseText.indexOf('MIPANTALLA-TV')>0) return x.responseText;
+    }catch(e){}
+    return null;
+  }
+  var html = get('https://perasalolmo26.github.io/mipantalla/tv/index-tv.html?t='+Date.now()) || get('app-local.html');
+  if(html){ document.open(); document.write(html); document.close(); }
+})();
+</script>
+</head><body style="background:#0e0f13"></body></html>
