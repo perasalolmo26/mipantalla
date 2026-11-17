@@ -535,10 +535,12 @@ let ex = {
   type: 'tv',
   genre: '',
   year: '',
+  origin: '',
   sort: 'popularity.desc',
   page: 1,
   only: null
 };
+const ORIGINS = [['AR', 'Argentina'], ['US', 'Estados Unidos'], ['GB', 'Reino Unido'], ['ES', 'España'], ['MX', 'México'], ['KR', 'Corea del Sur'], ['JP', 'Japón'], ['FR', 'Francia'], ['IT', 'Italia'], ['DE', 'Alemania'], ['CO', 'Colombia'], ['CL', 'Chile'], ['BR', 'Brasil'], ['UY', 'Uruguay'], ['CA', 'Canadá'], ['AU', 'Australia'], ['IN', 'India'], ['TR', 'Turquía'], ['SE', 'Suecia'], ['DK', 'Dinamarca'], ['NO', 'Noruega'], ['BE', 'Bélgica'], ['IL', 'Israel'], ['CN', 'China']];
 const YEARS = (() => {
   const y = new Date().getFullYear(),
     o = [];
@@ -568,6 +570,7 @@ async function viewExplore(m, append = false) {
     with_watch_monetization_types: 'flatrate',
     sort_by: sort,
     with_genres: ex.genre,
+    with_origin_country: ex.origin,
     page: ex.page,
     'vote_count.gte': ex.sort.startsWith('vote') ? yr ? 50 : 200 : '',
     [dateKey + '.gte']: yr ? yr[0] : '',
@@ -589,6 +592,7 @@ async function viewExplore(m, append = false) {
       <select id="fType"><option value="tv">Series</option><option value="movie">Películas</option></select>
       <select id="fGenre"><option value="">Todos los géneros</option>${genres.genres.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>
       <select id="fYear"><option value="">Todos los años</option>${YEARS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+      <select id="fOrigin"><option value="">Todos los países</option>${ORIGINS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
       <select id="fSort"><option value="popularity.desc">Más populares</option><option value="vote_average.desc">Mejor puntuadas</option><option value="release_date.desc">Más nuevas</option></select>
     </div>
     <div class="chips" id="exchips">${ps.filter(p => S.services.includes(p.provider_id)).map(p => `<button class="chip ${ex.only.includes(p.provider_id) ? 'on' : ''}" data-x="${p.provider_id}">${p.logo_path ? `<img src="${IMG}w92${p.logo_path}" alt="">` : ''}${esc(p.provider_name)}</button>`).join('')}</div>
@@ -597,9 +601,15 @@ async function viewExplore(m, append = false) {
   $('#fType').value = ex.type;
   $('#fGenre').value = ex.genre;
   $('#fYear').value = ex.year;
+  $('#fOrigin').value = ex.origin;
   $('#fSort').value = ex.sort;
   $('#fYear').onchange = e => {
     ex.year = e.target.value;
+    ex.page = 1;
+    render();
+  };
+  $('#fOrigin').onchange = e => {
+    ex.origin = e.target.value;
     ex.page = 1;
     render();
   };

@@ -349,7 +349,8 @@ async function viewNews(m, append=false){
   $('#more')&&($('#more').onclick=()=>{nw.page++; viewNews(m,true)});
 }
 
-let ex = {type:'tv', genre:'', year:'', sort:'popularity.desc', page:1, only:null};
+let ex = {type:'tv', genre:'', year:'', origin:'', sort:'popularity.desc', page:1, only:null};
+const ORIGINS = [['AR','Argentina'],['US','Estados Unidos'],['GB','Reino Unido'],['ES','España'],['MX','México'],['KR','Corea del Sur'],['JP','Japón'],['FR','Francia'],['IT','Italia'],['DE','Alemania'],['CO','Colombia'],['CL','Chile'],['BR','Brasil'],['UY','Uruguay'],['CA','Canadá'],['AU','Australia'],['IN','India'],['TR','Turquía'],['SE','Suecia'],['DK','Dinamarca'],['NO','Noruega'],['BE','Bélgica'],['IL','Israel'],['CN','China']];
 const YEARS = (()=>{ const y=new Date().getFullYear(), o=[]; for(let i=y;i>=y-11;i--) o.push([String(i),String(i)]);
   for(let d=Math.floor((y-12)/10)*10; d>=1960; d-=10) o.push([d+'s',`Años ${String(d).slice(2)}`]); o.push(['old','Antes de 1960']); return o })();
 function yearRange(v){ if(!v) return null; if(v==='old') return ['1900-01-01','1959-12-31']; if(v.endsWith('s')){const d=+v.slice(0,-1);return [d+'-01-01',(d+9)+'-12-31']} return [v+'-01-01',v+'-12-31'] }
@@ -359,7 +360,7 @@ async function viewExplore(m, append=false){
   const dateKey = ex.type==='tv' ? 'first_air_date' : 'primary_release_date';
   const yr = yearRange(ex.year);
   const sort = ex.sort.replace('release_date', ex.type==='tv'?'first_air_date':'primary_release_date');
-  const params = {watch_region:S.region, with_watch_providers:ex.only.join('|'), with_watch_monetization_types:'flatrate', sort_by:sort, with_genres:ex.genre, page:ex.page,
+  const params = {watch_region:S.region, with_watch_providers:ex.only.join('|'), with_watch_monetization_types:'flatrate', sort_by:sort, with_genres:ex.genre, with_origin_country:ex.origin, page:ex.page,
     'vote_count.gte': ex.sort.startsWith('vote')?(yr?50:200):'', [dateKey+'.gte']:yr?yr[0]:'', [dateKey+'.lte']:yr?yr[1]:(ex.sort==='release_date.desc'?new Date().toISOString().slice(0,10):'')};
   const res = await tmdb('/discover/'+ex.type, params);
   res.results.forEach(r=>r.media_type=ex.type);
@@ -370,13 +371,15 @@ async function viewExplore(m, append=false){
       <select id="fType"><option value="tv">Series</option><option value="movie">Películas</option></select>
       <select id="fGenre"><option value="">Todos los géneros</option>${genres.genres.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>
       <select id="fYear"><option value="">Todos los años</option>${YEARS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+      <select id="fOrigin"><option value="">Todos los países</option>${ORIGINS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
       <select id="fSort"><option value="popularity.desc">Más populares</option><option value="vote_average.desc">Mejor puntuadas</option><option value="release_date.desc">Más nuevas</option></select>
     </div>
     <div class="chips" id="exchips">${ps.filter(p=>S.services.includes(p.provider_id)).map(p=>`<button class="chip ${ex.only.includes(p.provider_id)?'on':''}" data-x="${p.provider_id}">${p.logo_path?`<img src="${IMG}w92${p.logo_path}" alt="">`:''}${esc(p.provider_name)}</button>`).join('')}</div>
     ${grid(res.results)}
     ${res.total_pages>ex.page?'<button class="more" id="more">Cargar más</button>':''}`;
-  $('#fType').value=ex.type; $('#fGenre').value=ex.genre; $('#fYear').value=ex.year; $('#fSort').value=ex.sort;
+  $('#fType').value=ex.type; $('#fGenre').value=ex.genre; $('#fYear').value=ex.year; $('#fOrigin').value=ex.origin; $('#fSort').value=ex.sort;
   $('#fYear').onchange=e=>{ex.year=e.target.value;ex.page=1;render()};
+  $('#fOrigin').onchange=e=>{ex.origin=e.target.value;ex.page=1;render()};
   $('#fType').onchange=e=>{ex.type=e.target.value;ex.genre='';ex.page=1;render()};
   $('#fGenre').onchange=e=>{ex.genre=e.target.value;ex.page=1;render()};
   $('#fSort').onchange=e=>{ex.sort=e.target.value;ex.page=1;render()};
