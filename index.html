@@ -349,11 +349,18 @@ async function viewNews(m, append=false){
   $('#more')&&($('#more').onclick=()=>{nw.page++; viewNews(m,true)});
 }
 
-let ex = {type:'tv', genre:'', sort:'popularity.desc', page:1, only:null};
+let ex = {type:'tv', genre:'', year:'', sort:'popularity.desc', page:1, only:null};
+const YEARS = (()=>{ const y=new Date().getFullYear(), o=[]; for(let i=y;i>=y-11;i--) o.push([String(i),String(i)]);
+  for(let d=Math.floor((y-12)/10)*10; d>=1960; d-=10) o.push([d+'s',`Años ${String(d).slice(2)}`]); o.push(['old','Antes de 1960']); return o })();
+function yearRange(v){ if(!v) return null; if(v==='old') return ['1900-01-01','1959-12-31']; if(v.endsWith('s')){const d=+v.slice(0,-1);return [d+'-01-01',(d+9)+'-12-31']} return [v+'-01-01',v+'-12-31'] }
 async function viewExplore(m, append=false){
   if(!ex.only) ex.only=[...S.services];
   const genres = await tmdb(`/genre/${ex.type}/list`);
-  const params = {watch_region:S.region, with_watch_providers:ex.only.join('|'), with_watch_monetization_types:'flatrate', sort_by:ex.sort, with_genres:ex.genre, page:ex.page, 'vote_count.gte': ex.sort.startsWith('vote')?200:''};
+  const dateKey = ex.type==='tv' ? 'first_air_date' : 'primary_release_date';
+  const yr = yearRange(ex.year);
+  const sort = ex.sort.replace('release_date', ex.type==='tv'?'first_air_date':'primary_release_date');
+  const params = {watch_region:S.region, with_watch_providers:ex.only.join('|'), with_watch_monetization_types:'flatrate', sort_by:sort, with_genres:ex.genre, page:ex.page,
+    'vote_count.gte': ex.sort.startsWith('vote')?(yr?50:200):'', [dateKey+'.gte']:yr?yr[0]:'', [dateKey+'.lte']:yr?yr[1]:(ex.sort==='release_date.desc'?new Date().toISOString().slice(0,10):'')};
   const res = await tmdb('/discover/'+ex.type, params);
   res.results.forEach(r=>r.media_type=ex.type);
   if(append){ const g=m.querySelector('.grid'); res.results.forEach(it=>shown.set(keyOf(it),it)); g.insertAdjacentHTML('beforeend',res.results.map(it=>cardHTML(it)).join('')); if(ex.page>=res.total_pages) m.querySelector('.more')?.remove(); return }
@@ -362,14 +369,14 @@ async function viewExplore(m, append=false){
     <div class="filters">
       <select id="fType"><option value="tv">Series</option><option value="movie">Películas</option></select>
       <select id="fGenre"><option value="">Todos los géneros</option>${genres.genres.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>
-      <select id="fSort"><option value="popularity.desc">Más populares</option><option value="vote_average.desc">Mejor puntuadas</option><option value="primary_release_date.desc">Más nuevas</option></select>
+      <select id="fYear"><option value="">Todos los años</option>${YEARS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+      <select id="fSort"><option value="popularity.desc">Más populares</option><option value="vote_average.desc">Mejor puntuadas</option><option value="release_date.desc">Más nuevas</option></select>
     </div>
     <div class="chips" id="exchips">${ps.filter(p=>S.services.includes(p.provider_id)).map(p=>`<button class="chip ${ex.only.includes(p.provider_id)?'on':''}" data-x="${p.provider_id}">${p.logo_path?`<img src="${IMG}w92${p.logo_path}" alt="">`:''}${esc(p.provider_name)}</button>`).join('')}</div>
     ${grid(res.results)}
     ${res.total_pages>ex.page?'<button class="more" id="more">Cargar más</button>':''}`;
-  $('#fType').value=ex.type; $('#fGenre').value=ex.genre;
-  $('#fSort').value=ex.sort.replace('primary_release_date', ex.type==='tv'?'primary_release_date':'primary_release_date');
-  if(ex.type==='tv' && ex.sort==='primary_release_date.desc') {} // ok
+  $('#fType').value=ex.type; $('#fGenre').value=ex.genre; $('#fYear').value=ex.year; $('#fSort').value=ex.sort;
+  $('#fYear').onchange=e=>{ex.year=e.target.value;ex.page=1;render()};
   $('#fType').onchange=e=>{ex.type=e.target.value;ex.genre='';ex.page=1;render()};
   $('#fGenre').onchange=e=>{ex.genre=e.target.value;ex.page=1;render()};
   $('#fSort').onchange=e=>{ex.sort=e.target.value;ex.page=1;render()};
@@ -411,11 +418,15 @@ async function openDetail(k){
   const q = encodeURIComponent(titleOf(det));
   // El link de TMDB/JustWatch lleva a la página exacta del título en cada plataforma.
   // La búsqueda dentro de la plataforma queda como alternativa.
-  const searchFor = p => KNOWN[p.provider_id]?.search(q) || `https://www.google.com/search?q=${q}+${encodeURIComponent(p.provider_name)}`;
-  const linkFor = p => r.link || searchFor(p);
+  const searchFor = p => {
+    const kn = KNOWN[p.provider_id] || Object.keys(SA_NAMES).map(Number).filter(id=>KNOWN[id]&&SA_NAMES[id].test(p.provider_name)).map(id=>KNOWN[id])[0];
+    return kn ? kn.search(q) : `https://www.google.com/search?q=${q}+${encodeURIComponent(p.provider_name)}`;
+  };
+  // Nunca mandamos a la ficha de TMDB: sin link directo, se abre la búsqueda del título dentro de la plataforma.
+  const linkFor = p => searchFor(p);
   const block=(t,arr)=>arr&&arr.length?`<h3>${t}</h3>`+arr.sort((a,b)=>S.services.includes(b.provider_id)-S.services.includes(a.provider_id)).map(p=>`<a class="open ${S.services.includes(p.provider_id)?'mine':''}" data-pid="${p.provider_id}" data-pname="${esc(p.provider_name)}" href="${linkFor(p)}" target="_blank" rel="noopener">${p.logo_path?`<img src="${IMG}w92${p.logo_path}" alt="">`:''}${S.services.includes(p.provider_id)?'▶ Ver en ':''}${esc(p.provider_name)}</a>`).join(''):'';
   const mineHere=(r.flatrate||[]).filter(p=>S.services.includes(p.provider_id));
-  const exactHint = r.link && !window.tizen && !S.saKey && mineHere.length ? `<p class="sub">Se abre la ficha con el link exacto: tocá el logo de ${esc(mineHere[0].provider_name)} y vas directo a la ${type==='tv'?'serie':'peli'}. ¿No funciona? ${mineHere.map(p=>`<a href="${searchFor(p)}" target="_blank" rel="noopener">Buscar en ${esc(p.provider_name)}</a>`).join(' · ')}</p>`:'';
+  const exactHint = !window.tizen && !S.saKey && mineHere.length ? `<p class="sub">Se abre ${esc(mineHere[0].provider_name)} con el título ya buscado. Para que abra directo la ${type==='tv'?'serie':'peli'}, cargá la clave de links directos en Ajustes.</p>`:'';
   const where = block('Incluido en la suscripción',r.flatrate)+exactHint+block('Alquilar',r.rent)+block('Comprar',r.buy)
     || `<h3>Dónde ver</h3><div class="sub">No figura en ninguna plataforma en ${esc(COUNTRIES.find(c=>c[0]===S.region)?.[1]||S.region)} por ahora.</div>`;
   const e = S.list[k];
