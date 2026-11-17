@@ -253,6 +253,38 @@ const S = {
   view: 'home',
   providers: null // lista de plataformas de la región
 };
+// Link de invitación (#invite=…): trae las claves de quien compartió la app, así el invitado no tiene que cargar nada.
+// Va en el # del link, que el navegador nunca manda a ningún servidor.
+let invited = false;
+(function () {
+  try {
+    const m = location.hash.match(/invite=([^&]+)/);
+    if (!m) return;
+    const d = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));
+    if (d.k && !S.key) {
+      S.key = d.k;
+      save('key', S.key);
+      invited = true;
+    }
+    if (d.sa && !S.saKey) {
+      S.saKey = d.sa;
+      save('saKey', S.saKey);
+    }
+    if (d.r && !localStorage.getItem('mp_region')) {
+      S.region = d.r;
+      save('region', S.region);
+    }
+    history.replaceState(null, '', location.pathname + location.search);
+  } catch (e) {}
+})();
+function inviteLink(withSa) {
+  const d = {
+    k: S.key,
+    r: S.region
+  };
+  if (withSa && S.saKey) d.sa = S.saKey;
+  return location.origin + location.pathname + '#invite=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(d)))));
+}
 function guessRegion() {
   const l = (navigator.language || 'es-AR').split('-')[1];
   return COUNTRIES.some(c => c[0] === l) ? l : 'AR';
@@ -881,6 +913,13 @@ async function openSettings() {
     <div class="hint">Con esta clave, "Ver en Netflix" abre la peli o serie directamente. Sacala en rapidapi.com → "Streaming Availability" → plan Basic (gratis). Sin clave, se abre la ficha de TMDB.</div>
     <label><input type="checkbox" id="sTV" ${document.body.classList.contains('tv') ? 'checked' : ''}> Modo tele (letra grande y control remoto)</label>
     <div class="hint">Se activa solo en Smart TV. En la tele conviene pegar la <b>Clave de la API</b> corta (32 letras y números) en vez del token largo.</div>
+    <label>Compartir MiPantalla con alguien</label>
+    <div class="hint">Mandale este link y la app le abre lista para usar, sin cargar claves. Comparte tu clave de TMDB (es gratis y no da acceso a nada tuyo). Tu lista y tus plataformas no se comparten.</div>
+    <label style="font-weight:400"><input type="checkbox" id="shSa"> Incluir también mi clave de links directos (comparten el límite diario de RapidAPI)</label>
+    <div class="actions">
+      <button class="btn" id="bShare" ${S.key ? '' : 'disabled'}>Compartir link</button>
+      <span class="hint" id="shMsg">${S.key ? '' : 'Primero cargá tu clave de TMDB.'}</span>
+    </div>
     <label for="sBackup">Pasar tu lista a otro dispositivo</label>
     <div class="hint">Copiá este código acá y pegalo en Ajustes en el otro dispositivo (celu, tele o compu).</div>
     <textarea id="sBackup" spellcheck="false"></textarea>
@@ -917,6 +956,28 @@ async function openSettings() {
     list: S.list
   }))));
   $('#sBackup').value = code();
+  $('#bShare').onclick = async () => {
+    const url = inviteLink($('#shSa').checked);
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'MiPantalla',
+          text: 'Todas tus pelis y series en un solo lugar:',
+          url
+        });
+        $('#shMsg').textContent = 'Listo.';
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      $('#shMsg').textContent = 'Link copiado: pegalo en WhatsApp o donde quieras.';
+    } catch (e) {
+      $('#shMsg').textContent = url;
+    }
+  };
   $('#bCopy').onclick = async () => {
     const t = $('#sBackup');
     t.value = code();
@@ -1303,6 +1364,7 @@ function toast(msg) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 4500);
 }
+if (invited) setTimeout(() => toast('¡Listo! Ya podés usar MiPantalla. Elegí tus plataformas en Ajustes.'), 1200);
 function tizenLaunch(id) {
   return new Promise((ok, ko) => {
     try {
