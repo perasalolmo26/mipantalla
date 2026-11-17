@@ -96,6 +96,11 @@ h2{font-size:18px;margin:20px 0 10px}
 .hero:after{content:"";position:absolute;inset:0;background:linear-gradient(transparent,var(--panel))}
 .close{position:absolute;top:10px;right:10px;z-index:2;background:#000a;color:#fff;border:0;width:34px;height:34px;border-radius:50%;font-size:18px}
 .mbody{padding:0 20px 22px;margin-top:-60px;position:relative;z-index:1}
+.hero.playing{min-height:0;padding-top:56.25%;background:#000}
+.hero.playing:after{display:none}
+.hero.playing iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
+.hero.playing+.mbody{margin-top:16px}
+.tr-actions{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
 .mtop{display:flex;gap:16px}
 .mtop .poster{width:120px;border-radius:10px;flex:none}
 .mtop .ph{width:120px;border-radius:10px;flex:none}
@@ -608,8 +613,12 @@ async function openDetail(k) {
   let det = it,
     wp = {};
   try {
-    [det, wp] = await Promise.all([tmdb(`/${type}/${it.id}`), tmdb(`/${type}/${it.id}/watch/providers`)]);
+    [det, wp] = await Promise.all([tmdb(`/${type}/${it.id}`, {
+      append_to_response: 'videos',
+      include_video_language: 'es,en,null'
+    }), tmdb(`/${type}/${it.id}/watch/providers`)]);
   } catch (e) {}
+  const trailer = pickTrailer(det.videos);
   det.media_type = type;
   const r = ((_wp$results = wp.results) === null || _wp$results === void 0 ? void 0 : _wp$results[S.region]) || {};
   const q = encodeURIComponent(titleOf(det));
@@ -635,6 +644,7 @@ async function openDetail(k) {
         <div class="sub">${type === 'tv' ? 'Serie' : 'Película'} · ${yearOf(det) || '—'}${runtime ? ' · ' + runtime : ''}${det.vote_average ? ' · ★ ' + det.vote_average.toFixed(1) : ''}${genres ? ' · ' + esc(genres) : ''}</div></div>
       </div>
       <p class="ov">${esc(det.overview || 'Sin sinopsis disponible.')}</p>
+      ${trailer ? `<div class="tr-actions"><button class="btn trailer" data-yt="${esc(trailer)}">▶ Ver tráiler</button>${window.tizen ? `<button class="btn" id="ytApp">Abrir en YouTube</button>` : ''}</div>` : ''}
       <div class="where">${where}</div>
       <div class="actions">
         <button class="btn ${(e === null || e === void 0 ? void 0 : e.status) === 'want' ? 'on' : ''}" data-s="want">+ Mi lista</button>
@@ -646,6 +656,10 @@ async function openDetail(k) {
       ${r.link ? `<p class="sub" style="margin-top:16px">Datos de disponibilidad: JustWatch vía TMDB.</p>` : ''}
     </div>`;
   $('#modal .close').onclick = closeDetail;
+  const tb = $('#modal .trailer');
+  if (tb) tb.onclick = () => toggleTrailer(tb);
+  const ya = $('#ytApp');
+  if (ya) ya.onclick = () => openYouTubeApp(trailer);
   if (S.saKey && $('#modal a.open[data-pid]')) {
     const st = document.createElement('p');
     st.className = 'sub';
@@ -700,6 +714,65 @@ async function openDetail(k) {
     }
   };
 }
+/* ---------- tráiler (YouTube) ---------- */
+function pickTrailer(v) {
+  const list = (v && v.results || []).filter(x => x.site === 'YouTube' && x.key);
+  if (!list.length) return null;
+  const score = x => (x.type === 'Trailer' ? 100 : x.type === 'Teaser' ? 50 : 0) + (x.iso_639_1 === 'es' ? 20 : x.iso_639_1 === 'en' ? 10 : 0) + (x.official ? 5 : 0);
+  return list.sort((a, b) => score(b) - score(a))[0].key;
+}
+function toggleTrailer(btn) {
+  const hero = $('#modal .hero');
+  if (!hero) return;
+  if (hero.classList.contains('playing')) {
+    stopTrailer();
+    btn.focus();
+    return;
+  }
+  const fr = document.createElement('iframe');
+  fr.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(btn.dataset.yt)}?autoplay=1&rel=0&playsinline=1&modestbranding=1`;
+  fr.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
+  fr.allowFullscreen = true;
+  fr.referrerPolicy = 'strict-origin-when-cross-origin';
+  fr.title = 'Tráiler';
+  fr.tabIndex = -1;
+  hero.classList.add('playing');
+  hero.appendChild(fr);
+  btn.textContent = '✕ Cerrar tráiler';
+  btn.focus();
+  hero.scrollIntoView({
+    block: 'start'
+  });
+}
+function stopTrailer() {
+  var _hero$querySelector;
+  const hero = $('#modal .hero');
+  if (!hero || !hero.classList.contains('playing')) return false;
+  (_hero$querySelector = hero.querySelector('iframe')) === null || _hero$querySelector === void 0 || _hero$querySelector.remove();
+  hero.classList.remove('playing');
+  const b = $('#modal .trailer');
+  if (b) b.textContent = '▶ Ver tráiler';
+  return true;
+}
+// En la tele, el reproductor no debe quedarse con el control remoto: el foco vuelve al botón.
+window.addEventListener('blur', () => {
+  if (isTV) setTimeout(() => {
+    var _document$activeEleme, _$4;
+    if (((_document$activeEleme = document.activeElement) === null || _document$activeEleme === void 0 ? void 0 : _document$activeEleme.tagName) === 'IFRAME') (_$4 = $('#modal .trailer')) === null || _$4 === void 0 || _$4.focus();
+  }, 0);
+});
+async function openYouTubeApp(id) {
+  const YT = '111299001912';
+  try {
+    await tizenAppControl(YT, null, 'v=' + id);
+  } catch (_) {
+    try {
+      await tizenAppControl(YT, 'https://www.youtube.com/watch?v=' + id);
+    } catch (e) {
+      toast('No se pudo abrir YouTube en la tele');
+    }
+  }
+}
 function slim(d) {
   return {
     id: d.id,
@@ -716,6 +789,7 @@ function slim(d) {
 let lastFocus = null;
 async function closeDetail() {
   var _ref3;
+  stopTrailer();
   $('#ov').classList.remove('on');
   await render();
   const c = lastFocus && document.querySelector(`.card[data-k="${lastFocus}"]`);
@@ -1052,19 +1126,20 @@ function keyName(e) {
   return KEYCODES[e.keyCode] || '';
 }
 document.addEventListener('keydown', ev => {
-  var _document$activeEleme, _document$activeEleme3;
+  var _document$activeEleme2, _document$activeEleme4;
   const e = {
     key: keyName(ev),
     keyCode: ev.keyCode,
     preventDefault: () => ev.preventDefault()
   };
   const open = $('#ov').classList.contains('on');
-  const typing = /INPUT|TEXTAREA|SELECT/.test((_document$activeEleme = document.activeElement) === null || _document$activeEleme === void 0 ? void 0 : _document$activeEleme.tagName);
+  const typing = /INPUT|TEXTAREA|SELECT/.test((_document$activeEleme2 = document.activeElement) === null || _document$activeEleme2 === void 0 ? void 0 : _document$activeEleme2.tagName);
   const back = e.key === 'Escape' || e.keyCode === 10009 || e.key === 'GoBack' || e.key === 'BrowserBack' || e.key === 'Backspace' && !typing;
   if (back) {
     if (open) {
+      var _$5;
       e.preventDefault();
-      closeDetail();
+      if (stopTrailer()) (_$5 = $('#modal .trailer')) === null || _$5 === void 0 || _$5.focus();else closeDetail();
     } else if (S.view !== 'home') {
       e.preventDefault();
       S.view = 'home';
@@ -1088,7 +1163,7 @@ document.addEventListener('keydown', ev => {
     ArrowUp: 'up'
   };
   if (dirs[e.key]) {
-    var _document$activeEleme2;
+    var _document$activeEleme3;
     // En un campo de texto, izquierda/derecha mueven el cursor; arriba/abajo salen del campo.
     // Salvo que el cursor esté en el borde del texto: así se puede salir del buscador hacia Ajustes.
     if (typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
@@ -1100,12 +1175,12 @@ document.addEventListener('keydown', ev => {
       } catch (_) {}
       if (!atEdge && v) return;
     }
-    if (((_document$activeEleme2 = document.activeElement) === null || _document$activeEleme2 === void 0 ? void 0 : _document$activeEleme2.tagName) === 'SELECT' && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && !isTV) return;
+    if (((_document$activeEleme3 = document.activeElement) === null || _document$activeEleme3 === void 0 ? void 0 : _document$activeEleme3.tagName) === 'SELECT' && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && !isTV) return;
     e.preventDefault();
     moveFocus(dirs[e.key]);
     return;
   }
-  if (e.key === 'Enter' && (_document$activeEleme3 = document.activeElement) !== null && _document$activeEleme3 !== void 0 && _document$activeEleme3.classList.contains('card')) {
+  if (e.key === 'Enter' && (_document$activeEleme4 = document.activeElement) !== null && _document$activeEleme4 !== void 0 && _document$activeEleme4.classList.contains('card')) {
     e.preventDefault();
     document.activeElement.click();
   }
@@ -1113,7 +1188,7 @@ document.addEventListener('keydown', ev => {
 // Al abrir un título, el foco va al primer botón de "Ver en…".
 new MutationObserver(() => {
   if ($('#ov').classList.contains('on')) {
-    const b = $('#sRegion') || $('#modal .open') || $('#modal .actions .btn') || $('#modal .close');
+    const b = $('#sRegion') || $('#modal .trailer') || $('#modal .open') || $('#modal .actions .btn') || $('#modal .close');
     if (b && !$('#modal').contains(document.activeElement)) b.focus();
   }
 }).observe($('#modal'), {
