@@ -5,7 +5,7 @@ Esta guía es para hacerla con tus manos, en tu Mac, paso a paso. La parte técn
 Tiempo aproximado: una tarde para dejar todo listo, y después esperar la revisión de cada tienda (Apple y Google suelen tardar entre 1 y 7 días).
 
 **MiPantalla se publica a nombre de la sociedad**, con las cuentas de organización (con el número D-U-N-S de la sociedad):
-- **Google:** una cuenta nueva de tipo Organización en https://play.google.com/console/signup (25 USD, pago único). Con esa cuenta no hace falta la prueba de 12 personas y 14 días.
+- **Google:** tu cuenta actual pasada a Organización, sin pagar de nuevo: Play Console → Administrar cuenta → Detalles de la cuenta → Sobre vos → verificar el sitio web de la sociedad → Cambiar tipo de cuenta (con el D-U-N-S). Después esperá 72 horas antes de subir apps nuevas. Guía oficial: https://support.google.com/googleplay/android-developer/answer/16260648 . La prueba de 12 personas y 14 días es solo para cuentas personales; confirmá en el Panel de Play Console que ya no la pida.
 - **Apple:** tu cuenta actual pasada a Organización con el formulario de Apple (https://developer.apple.com/help/account/membership/updating-your-account-information/). Mandalo después de que aprueben Lugarcito.
 
 ---
