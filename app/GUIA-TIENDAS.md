@@ -2,7 +2,11 @@
 
 Esta guía es para hacerla con tus manos, en tu Mac, paso a paso. La parte técnica ya está armada: acá solo hay que instalar programas, poner tu clave, compilar, firmar y subir.
 
-Tiempo aproximado: una tarde para dejar todo listo, y después esperar la revisión de cada tienda (Apple tarda 1 a 3 días; Google, por ser cuenta nueva, pide primero 14 días de prueba, ver la parte B).
+Tiempo aproximado: una tarde para dejar todo listo, y después esperar la revisión de cada tienda (Apple y Google suelen tardar entre 1 y 7 días).
+
+**MiPantalla se publica a nombre de la sociedad**, con las cuentas de organización (con el número D-U-N-S de la sociedad):
+- **Google:** tu cuenta actual pasada a Organización, sin pagar de nuevo: Play Console → Administrar cuenta → Detalles de la cuenta → Sobre vos → verificar el sitio web de la sociedad → Cambiar tipo de cuenta (con el D-U-N-S). Después esperá 72 horas antes de subir apps nuevas. Guía oficial: https://support.google.com/googleplay/android-developer/answer/16260648 . La prueba de 12 personas y 14 días es solo para cuentas personales; confirmá en el Panel de Play Console que ya no la pida.
+- **Apple:** tu cuenta actual pasada a Organización con el formulario de Apple (https://developer.apple.com/help/account/membership/updating-your-account-information/). Mandalo después de que aprueben Lugarcito.
 
 ---
 
@@ -81,7 +85,7 @@ Se abre Xcode.
 
 ### A4. Crear la app en App Store Connect
 
-1. Entrá a https://appstoreconnect.apple.com → **Apps** → botón **+** → **Nueva app**.
+1. Entrá a https://appstoreconnect.apple.com (ya con la cuenta pasada a organización) → **Apps** → botón **+** → **Nueva app**.
 2. Completá:
    - Plataforma: **iOS**
    - Nombre: **MiPantalla** (si está ocupado, probá "MiPantalla: dónde ver")
@@ -144,10 +148,12 @@ Si tenés un Android: activá "Opciones de desarrollador" y "Depuración USB", c
 
 ### B4. Crear la app en Play Console
 
-1. Entrá a https://play.google.com/console → **Crear app**.
+1. Entrá a https://play.google.com/console **con la cuenta de la sociedad** → **Crear app**.
 2. Nombre: **MiPantalla**, idioma: Español (Latinoamérica), **App**, **Gratis**. Aceptá las declaraciones.
 
-### B5. La prueba de 14 días (obligatoria para cuentas personales nuevas)
+### B5. La prueba de 14 días (solo si usás una cuenta personal)
+
+**Con la cuenta de la sociedad este paso no hace falta: salteá a B6 y, al final, subí el `.aab` en Probar y publicar → Producción → Crear versión.**
 
 Google pide que las cuentas personales nuevas hagan una **prueba cerrada con al menos 12 personas durante 14 días** antes de publicar para todos.
 
