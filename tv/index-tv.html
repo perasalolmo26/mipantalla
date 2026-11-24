@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!--MIPANTALLA-TV-->
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MiPantalla</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0e0f13">
@@ -20,7 +20,7 @@
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:inherit}
 button{font:inherit;cursor:pointer}
-header{position:sticky;top:0;z-index:5;background:rgba(14,15,19,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+header{position:sticky;top:0;z-index:5;padding-top:env(safe-area-inset-top,0px);background:rgba(14,15,19,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
 .bar{max-width:1280px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .logo{font-weight:800;font-size:20px;letter-spacing:-.5px;white-space:nowrap}
 .logo span{color:var(--accent)}
@@ -101,6 +101,8 @@ h2{font-size:18px;margin:20px 0 10px}
 .hero.playing iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
 .hero.playing+.mbody{margin-top:16px}
 .tr-actions{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
+.tr-actions.more{margin:16px 0 6px}
+#remindBox .btn{margin:4px 4px 0 0}
 .mtop{display:flex;gap:16px}
 .mtop .poster{width:120px;border-radius:10px;flex:none}
 .mtop .ph{width:120px;border-radius:10px;flex:none}
@@ -153,9 +155,9 @@ h2{font-size:18px;margin:20px 0 10px}
 
 <script>
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
-function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
-function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _objectSpread(r) { for (var t = 1; t < arguments.length; t++) { var o = null != arguments[t] ? arguments[t] : {}; t % 2 ? ownKeys(Object(o), !0).forEach(function (t) { _defineProperty(r, t, o[t]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(r, Object.getOwnPropertyDescriptors(o)) : ownKeys(Object(o)).forEach(function (e) { Object.defineProperty(r, e, Object.getOwnPropertyDescriptor(o, e)); }); } return r; }
+function _defineProperty(r, t, o) { return (t = _toPropertyKey(t)) in r ? Object.defineProperty(r, t, { value: o, enumerable: !0, configurable: !0, writable: !0 }) : r[t] = o, r; }
+function _toPropertyKey(r) { var o = _toPrimitive(r, "string"); return "symbol" == typeof o ? o : o + ""; }
 function _toPrimitive(t, e) { if ("object" != typeof t || !t) return t; var r; if ("undefined" != typeof Symbol && void 0 !== (r = t[Symbol.toPrimitive])) { var i = r.call(t, e || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === e ? String : Number)(t); }
 /* =========================================================
    MiPantalla: catálogo unificado de streaming.
@@ -243,7 +245,8 @@ function save(k, v) {
   } catch (e) {}
 }
 const S = {
-  key: load('key', ''),
+  key: window.MP_DEFAULT_KEY || load('key', ''),
+  // en la app de las tiendas la clave viene incluida y no se cambia
   saKey: load('saKey', ''),
   // clave opcional de Streaming Availability (RapidAPI) para links directos
   region: load('region', guessRegion()),
@@ -283,7 +286,8 @@ function inviteLink(withSa) {
     r: S.region
   };
   if (withSa && S.saKey) d.sa = S.saKey;
-  return location.origin + location.pathname + '#invite=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(d)))));
+  const base = window.MP_NATIVE ? MP_NATIVE.publicUrl : location.origin + location.pathname;
+  return base + '#invite=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(d)))));
 }
 function guessRegion() {
   const l = (navigator.language || 'es-AR').split('-')[1];
@@ -725,6 +729,7 @@ async function openDetail(k) {
         ${e ? '<button class="btn" data-s="remove">Quitar</button>' : ''}
         ${type === 'tv' ? `<span class="ep">Voy por T <input id="se" type="number" min="1" value="${(e === null || e === void 0 ? void 0 : e.season) || 1}"> E <input id="epn" type="number" min="1" value="${(e === null || e === void 0 ? void 0 : e.episode) || 1}"></span>` : ''}
       </div>
+      ${window.tizen ? '' : `<div class="tr-actions more"><button class="btn" id="bShareT">↗ Compartir</button>${window.MP_NATIVE ? '<button class="btn" id="bRemind">🔔 Recordarme</button>' : ''}</div><div id="remindBox" class="sub"></div>`}
       ${r.link ? `<p class="sub" style="margin-top:16px">Datos de disponibilidad: JustWatch vía TMDB.</p>` : ''}
     </div>`;
   $('#modal .close').onclick = closeDetail;
@@ -732,6 +737,9 @@ async function openDetail(k) {
   if (tb) tb.onclick = () => toggleTrailer(tb);
   const ya = $('#ytApp');
   if (ya) ya.onclick = () => openYouTubeApp(trailer);
+  const bs = $('#bShareT');
+  if (bs) bs.onclick = () => shareTitle(det, (r.flatrate || []).map(p => p.provider_name));
+  if ($('#bRemind')) setupRemind(k, det);
   if (S.saKey && $('#modal a.open[data-pid]')) {
     const st = document.createElement('p');
     st.className = 'sub';
@@ -774,6 +782,8 @@ async function openDetail(k) {
       updated: Date.now()
     };
     save('list', S.list);
+    if (window.MP_NATIVE) MP_NATIVE.haptic();
+    if (s === 'remove' && window.MP_NATIVE) MP_NATIVE.cancelRemind(k);
     openDetail(k);
   };
   $('#modal .actions').onchange = () => {
@@ -794,6 +804,11 @@ function pickTrailer(v) {
   return list.sort((a, b) => score(b) - score(a))[0].key;
 }
 function toggleTrailer(btn) {
+  // En la app del teléfono el tráiler se abre en YouTube (el reproductor incrustado no siempre anda ahí).
+  if (window.MP_NATIVE) {
+    MP_NATIVE.openExternal('https://www.youtube.com/watch?v=' + encodeURIComponent(btn.dataset.yt));
+    return;
+  }
   const hero = $('#modal .hero');
   if (!hero) return;
   if (hero.classList.contains('playing')) {
@@ -859,6 +874,101 @@ function slim(d) {
   };
 }
 let lastFocus = null;
+/* ---------- compartir un título y recordatorios ---------- */
+async function shareTitle(det, provs) {
+  const t = titleOf(det),
+    y = yearOf(det);
+  const text = `Mirá «${t}»${y ? ' (' + y + ')' : ''}${provs.length ? '. Está en ' + [...new Set(provs)].slice(0, 3).join(', ') : ''}. Lo encontré con MiPantalla`;
+  const url = window.MP_NATIVE ? MP_NATIVE.publicUrl : location.origin + location.pathname;
+  try {
+    if (window.MP_NATIVE) return await MP_NATIVE.share({
+      title: t,
+      text,
+      url
+    });
+    if (navigator.share) return await navigator.share({
+      title: t,
+      text,
+      url
+    });
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+  }
+  try {
+    await navigator.clipboard.writeText(text + ': ' + url);
+    toast('Copiado: pegalo en WhatsApp o donde quieras.');
+  } catch (e) {
+    toast(text + ': ' + url);
+  }
+}
+function remindOptions() {
+  const now = new Date(),
+    at = (d, h, m) => {
+      const x = new Date(now);
+      x.setDate(x.getDate() + d);
+      x.setHours(h, m || 0, 0, 0);
+      return x;
+    };
+  const o = [['En 1 hora', new Date(Date.now() + 36e5)]];
+  if (now.getHours() < 20 || now.getHours() === 20 && now.getMinutes() < 30) o.push(['Hoy a las 21', at(0, 21)]);
+  o.push(['Mañana a las 21', at(1, 21)]);
+  let d = (6 - now.getDay() + 7) % 7;
+  if (d === 0 && now.getHours() >= 19) d = 7;
+  if (d > 1) o.push(['El sábado a las 20', at(d, 20)]);
+  return o;
+}
+const fmtWhen = d => d instanceof Date ? d.toLocaleString('es', {
+  weekday: 'long',
+  hour: '2-digit',
+  minute: '2-digit'
+}) : 'pronto';
+async function setupRemind(k, det) {
+  const box = $('#remindBox'),
+    btn = $('#bRemind');
+  const show = async () => {
+    const p = await MP_NATIVE.pendingReminder(k);
+    box.innerHTML = p ? `🔔 Te aviso el ${esc(fmtWhen(p))}. <a href="#" id="rmCancel">Cancelar aviso</a>` : '';
+    btn.classList.toggle('on', !!p);
+    const c = $('#rmCancel');
+    if (c) c.onclick = async ev => {
+      ev.preventDefault();
+      await MP_NATIVE.cancelRemind(k);
+      show();
+    };
+  };
+  btn.onclick = () => {
+    const opts = remindOptions();
+    box.innerHTML = '¿Cuándo te aviso? ' + opts.map((o, i) => `<button class="btn" data-r="${i}">${o[0]}</button>`).join(' ');
+    box.onclick = async ev => {
+      const b = ev.target.closest('[data-r]');
+      if (!b) return;
+      try {
+        await MP_NATIVE.remind(k, slim(det), titleOf(det), opts[+b.dataset.r][1]);
+        if (!S.list[k]) {
+          S.list[k] = {
+            item: slim(det),
+            status: 'want',
+            season: 1,
+            episode: 1,
+            updated: Date.now()
+          };
+          save('list', S.list);
+        }
+        MP_NATIVE.haptic();
+        box.onclick = null;
+        show();
+      } catch (e) {
+        box.textContent = e.message || 'No se pudo programar el aviso.';
+      }
+    };
+  };
+  show();
+}
+// Lo usa la notificación del teléfono para abrir la ficha de un título.
+window.mpOpen = (k, item) => {
+  if (item && !shown.has(k)) shown.set(k, item);
+  openDetail(k);
+};
 async function closeDetail() {
   var _ref3;
   stopTrailer();
@@ -944,18 +1054,18 @@ async function openSettings() {
     <label>Tus plataformas</label>
     <div class="hint">Marcá las que pagás. Se usan para filtrar el catálogo.</div>
     <div class="chips" id="schips" style="margin-top:8px">Cargando…</div>
-    <label for="sKey">Clave de TMDB (gratis)</label>
+    ${window.MP_DEFAULT_KEY ? `<div class="hint" style="margin-top:14px"><b>Nunca</b> te vamos a pedir la contraseña de Netflix, Disney+ ni ninguna otra.</div>` : `<label for="sKey">Clave de TMDB (gratis)</label>
     <input id="sKey" type="text" placeholder="Pegá tu API key o token de lectura" value="${esc(S.key)}">
     <div class="hint">Creá una cuenta en themoviedb.org → Ajustes → API. Se guarda solo en este navegador.<br>
-    <b>Nunca</b> te vamos a pedir la contraseña de Netflix, Disney+ ni ninguna otra.</div>
+    <b>Nunca</b> te vamos a pedir la contraseña de Netflix, Disney+ ni ninguna otra.</div>`}
     <label for="sSaKey">Links directos a cada título (opcional, gratis)</label>
     <input id="sSaKey" type="text" placeholder="Pegá tu clave de RapidAPI" value="${esc(S.saKey)}">
     <div class="hint">Con esta clave, "Ver en Netflix" abre la peli o serie directamente. Sacala en rapidapi.com → "Streaming Availability" → plan Basic (gratis). Sin clave, se abre la ficha de TMDB.</div>
-    <label><input type="checkbox" id="sTV" ${document.body.classList.contains('tv') ? 'checked' : ''}> Modo tele (letra grande y control remoto)</label>
-    <div class="hint">Se activa solo en Smart TV. En la tele conviene pegar la <b>Clave de la API</b> corta (32 letras y números) en vez del token largo.</div>
+    ${window.MP_NATIVE ? '' : `<label><input type="checkbox" id="sTV" ${document.body.classList.contains('tv') ? 'checked' : ''}> Modo tele (letra grande y control remoto)</label>
+    <div class="hint">Se activa solo en Smart TV. En la tele conviene pegar la <b>Clave de la API</b> corta (32 letras y números) en vez del token largo.</div>`}
     <label>Compartir MiPantalla con alguien</label>
-    <div class="hint">Mandale este link y la app le abre lista para usar, sin cargar claves. Comparte tu clave de TMDB (es gratis y no da acceso a nada tuyo). Tu lista y tus plataformas no se comparten.</div>
-    <label style="font-weight:400"><input type="checkbox" id="shSa"> Incluir también mi clave de links directos (comparten el límite diario de RapidAPI)</label>
+    ${window.MP_DEFAULT_KEY ? `<div class="hint">Mandale el link de MiPantalla a quien quieras.</div>` : `<div class="hint">Mandale este link y la app le abre lista para usar, sin cargar claves. Comparte tu clave de TMDB (es gratis y no da acceso a nada tuyo). Tu lista y tus plataformas no se comparten.</div>
+    <label style="font-weight:400"><input type="checkbox" id="shSa"> Incluir también mi clave de links directos (comparten el límite diario de RapidAPI)</label>`}
     <div class="actions">
       <button class="btn" id="bShare" ${S.key ? '' : 'disabled'}>Compartir link</button>
       <span class="hint" id="shMsg">${S.key ? '' : 'Primero cargá tu clave de TMDB.'}</span>
@@ -969,6 +1079,8 @@ async function openSettings() {
       <span class="hint" id="bMsg"></span>
     </div>
     <div class="actions"><button class="btn primary" id="sSave">Guardar</button></div>
+    <label>Acerca de MiPantalla</label>
+    <div class="hint">Esta app usa la API de TMDB pero no está avalada ni certificada por TMDB. Los datos de dónde ver cada título son de JustWatch. MiPantalla no está asociada a Netflix, Disney+, Max, Apple TV+, Prime Video ni a ninguna otra plataforma. <a href="https://perasalolmo26.github.io/mipantalla/privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.</div>
   </div>`;
   $('#sRegion').value = S.region;
   $('#modal .close').onclick = closeDetail;
@@ -997,7 +1109,18 @@ async function openSettings() {
   }))));
   $('#sBackup').value = code();
   $('#bShare').onclick = async () => {
-    const url = inviteLink($('#shSa').checked);
+    const url = window.MP_DEFAULT_KEY ? MP_NATIVE.publicUrl : inviteLink($('#shSa') && $('#shSa').checked);
+    if (window.MP_NATIVE) {
+      try {
+        await MP_NATIVE.share({
+          title: 'MiPantalla',
+          text: 'Todas tus pelis y series en un solo lugar:',
+          url
+        });
+        $('#shMsg').textContent = 'Listo.';
+        return;
+      } catch (e) {}
+    }
     if (navigator.share) {
       try {
         await navigator.share({
@@ -1049,12 +1172,12 @@ async function openSettings() {
       $('#bMsg').textContent = 'Ese código no es válido. Copialo completo desde el otro dispositivo.';
     }
   };
-  $('#sTV').onchange = e => {
+  if ($('#sTV')) $('#sTV').onchange = e => {
     document.body.classList.toggle('tv', e.target.checked);
     save('tv', e.target.checked);
   };
   $('#sSave').onclick = () => {
-    const k = $('#sKey').value.trim();
+    const k = window.MP_DEFAULT_KEY || $('#sKey').value.trim();
     if (k !== S.key) {
       S.key = k;
       S.providers = null;
@@ -1063,7 +1186,7 @@ async function openSettings() {
     if (!S.services.length) S.services = [...DEFAULT_SERVICES];
     S.saKey = $('#sSaKey').value.trim();
     save('saKey', S.saKey);
-    save('key', S.key);
+    if (!window.MP_DEFAULT_KEY) save('key', S.key);
     save('region', S.region);
     save('services', S.services);
     ex.only = null;
@@ -1597,7 +1720,7 @@ $('#install').onclick = async () => {
   installEv = null;
   $('#install').hidden = true;
 };
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', {
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.MP_NATIVE) navigator.serviceWorker.register('sw.js', {
   updateViaCache: 'none'
 }).catch(() => {});
 render();

@@ -17,3 +17,8 @@ Catálogo unificado de pelis y series de Netflix, Disney+, Max, Apple TV+, Prime
 ## Límite importante
 No inicia sesión con tus cuentas ni reproduce el video adentro: las plataformas no lo permiten (no tienen API pública y usan DRM).
 La reproducción siempre ocurre en la app oficial. Nunca pide contraseñas.
+
+## App para celulares (Google Play y App Store)
+La carpeta `app/` tiene la app para Android y iPhone, hecha con Capacitor a partir de esta misma web.
+Pasos para compilarla, firmarla y subirla a las tiendas: [app/GUIA-TIENDAS.md](app/GUIA-TIENDAS.md).
+Política de privacidad: https://perasalolmo26.github.io/mipantalla/privacidad.html

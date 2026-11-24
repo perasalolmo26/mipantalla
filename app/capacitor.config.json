@@ -1,0 +1,29 @@
+{
+  "appId": "io.github.perasalolmo26.mipantalla",
+  "appName": "MiPantalla",
+  "webDir": "www",
+  "backgroundColor": "#0e0f13",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0e0f13"
+  },
+  "android": {
+    "backgroundColor": "#0e0f13"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0e0f13",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0e0f13",
+      "overlaysWebView": false
+    },
+    "LocalNotifications": {
+      "iconColor": "#ff4d6d",
+      "smallIcon": "ic_stat_mipantalla"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "mipantalla-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MiPantalla para Android y iPhone (Capacitor)",
+  "scripts": {
+    "preparar": "node preparar-app.js",
+    "android": "node preparar-app.js && npx cap sync android && npx cap open android",
+    "ios": "node preparar-app.js && npx cap sync ios && npx cap open ios",
+    "iconos": "npx @capacitor/assets generate --iconBackgroundColor '#0e0f13' --iconBackgroundColorDark '#0e0f13' --splashBackgroundColor '#0e0f13' --splashBackgroundColorDark '#0e0f13'"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/app-launcher": "^8.0.1",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.2"
+  }
+}
